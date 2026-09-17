@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=0.1, maximum-scale=5.0, user-scalable=yes">
-  <title>51民宿預約與財務管理系統 V.260917.10</title>
+  <title>51民宿預約與財務管理系統 V.260917.11</title>
   
   <!-- 載入 Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
@@ -187,7 +187,7 @@
     .date-col { width: 75px; min-width: 75px; font-weight: 500; font-size: 12px; white-space: nowrap; }
     .weekend { background-color: #fef3c7 !important; }
     .holiday { background-color: #fee2e2 !important; border-left: 4px solid #ef4444 !important; }
-    .holiday-tag { display: inline-block; font-size: 11px; color: #b91c1c; font-weight: bold; background: #fecaca; padding: 1px 4px; border-radius: 4px; margin-top: 2px; }
+    .holiday-tag { display: inline-block; font-size: 11px; color: #b91c1c; font-weight: bold; background: #fecaca; padding: 2px 5px; border-radius: 4px; margin-top: 3px; }
 
     /* 房型顏色區分設計 */
     .room-col { min-width: 140px; vertical-align: top; position: relative; transition: all 0.2s; }
@@ -259,7 +259,7 @@
   <div class="top-bar">
     <div class="title">
       🏡 51民宿預約與財務管理系統
-      <span class="version-badge">V.260917.10</span>
+      <span class="version-badge">V.260917.11</span>
       <span id="syncStatus" class="status-badge">連線中...</span>
     </div>
   </div>
@@ -277,10 +277,9 @@
     <div class="controls">
       <label>切換月份：<input type="month" id="bookingMonthPicker" style="width:140px;"></label>
       <button onclick="exportToExcel()">📊 匯出 Excel 報表</button>
-      <span style="font-size: 12px; color: #64748b;">💡 客名欄有字整格會變紅框，方便手機檢視。</span>
     </div>
 
-    <!-- 將收款人累計搬移到這裡 (表格上方) -->
+    <!-- 收款人累計 (移至表格上方) -->
     <div class="summary-banner">
       <span class="summary-banner-title">💰 本月收款統計：</span>
       <div class="summary-grid">
@@ -454,17 +453,28 @@
   </div>
 
   <script>
-    // 國定假日清單
+    // ==========================================
+    // 國定假日清單 (完整涵蓋 2025、2026、2027)
+    // ==========================================
     const TAIWAN_HOLIDAYS = {
-      "2025-01-01": "元旦", "2025-01-27": "春節連假", "2025-01-28": "除夕", "2025-01-29": "春節", "2025-01-30": "初二", "2025-01-31": "初三",
-      "2025-02-28": "和平紀念日", "2025-04-03": "連假", "2025-04-04": "兒童節", "2025-04-05": "清明節", "2025-05-01": "勞動節",
-      "2025-05-30": "端午連假", "2025-05-31": "端午節", "2025-10-06": "中秋節", "2025-10-10": "國慶日",
-      "2026-01-01": "元旦", "2026-02-16": "除夕", "2026-02-17": "春節初一", "2026-02-18": "春節初二", "2026-02-19": "春節初三",
-      "2026-02-27": "和平連假", "2026-02-28": "和平紀念日", "2026-04-03": "兒童節補假", "2026-04-04": "兒童節", "2026-04-05": "清明節",
-      "2026-05-01": "勞動節", "2026-06-19": "端午節", "2026-09-25": "中秋節", "2026-10-09": "國慶補假", "2026-10-10": "國慶日",
-      "2027-01-01": "元旦", "2027-02-05": "除夕", "2027-02-06": "春節", "2027-02-07": "初二", "2027-02-08": "初三",
-      "2027-02-28": "和平紀念日", "2027-04-04": "兒童節", "2027-04-05": "清明節", "2027-05-01": "勞動節",
-      "2027-06-09": "端午節", "2027-09-15": "中秋節", "2027-10-10": "國慶日"
+      // 2025
+      "2025-01-01": "元旦", "2025-01-27": "春節調整放假", "2025-01-28": "除夕", "2025-01-29": "春節", "2025-01-30": "初二", "2025-01-31": "初三",
+      "2025-02-28": "和平紀念日", "2025-04-03": "兒童節補假", "2025-04-04": "兒童清明節", "2025-05-01": "勞動節",
+      "2025-05-30": "端午補假", "2025-05-31": "端午節", "2025-10-06": "中秋節補假", "2025-10-10": "國慶日",
+
+      // 2026
+      "2026-01-01": "元旦", "2026-01-02": "元旦連假",
+      "2026-02-16": "除夕", "2026-02-17": "春節初一", "2026-02-18": "春節初二", "2026-02-19": "春節初三", "2026-02-20": "春節初四", "2026-02-23": "春節補假",
+      "2026-02-27": "和平補假", "2026-02-28": "和平紀念日", 
+      "2026-04-03": "兒童節", "2026-04-04": "清明節", "2026-04-06": "清明補假",
+      "2026-05-01": "勞動節", "2026-06-19": "端午節", "2026-09-25": "中秋節", "2026-10-09": "國慶連假", "2026-10-10": "國慶日",
+
+      // 2027
+      "2027-01-01": "元旦", 
+      "2027-02-05": "除夕", "2027-02-06": "春節", "2027-02-07": "初二", "2027-02-08": "初三", "2027-02-09": "初四",
+      "2027-02-26": "和平補假", "2027-02-28": "和平紀念日", 
+      "2027-04-02": "兒童節補假", "2027-04-04": "兒童節", "2027-04-05": "清明節", 
+      "2027-05-01": "勞動節", "2027-06-09": "端午節", "2027-09-15": "中秋節", "2027-10-10": "國慶日", "2027-10-11": "國慶補假"
     };
 
     // Firebase 配置
@@ -611,7 +621,6 @@
         let rowTotal = 0;
         const tr = document.createElement('tr');
 
-        // 日期欄
         const tdDate = document.createElement('td');
         let dateClass = 'date-col freeze-left';
         if (holidayName) dateClass += ' holiday';
@@ -623,7 +632,6 @@
         tdDate.innerHTML = dateHtml;
         tr.appendChild(tdDate);
 
-        // 房型
         for (let r = 1; r <= 5; r++) {
           const roomKey = `r${r}`;
           const rData = dayData[roomKey] || { info: '', phone: '', price: '', payee: '未收款' };
