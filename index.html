@@ -3,7 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>民宿訂房管理系統 (Google 試算表同步版)</title>
+  <title>民宿房況與訂房管理系統</title>
+  
+  <!-- 載入 Firebase SDK (CDN 相容版本) -->
+  <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
+
   <style>
     :root {
       --primary-color: #2c3e50;
@@ -72,9 +77,14 @@
       background-color: #e2e8f0;
       font-weight: 600;
       font-size: 14px;
+      user-select: none;
     }
     .th-room {
+      cursor: pointer;
       color: #1e40af;
+    }
+    .th-room:hover {
+      background-color: #cbd5e1;
     }
     .date-col {
       width: 110px;
@@ -103,7 +113,7 @@
       font-size: 13px;
       box-sizing: border-box;
       resize: vertical;
-      min-height: 46px;
+      min-height: 48px;
       line-height: 1.3;
       background-color: #fff;
     }
@@ -152,11 +162,11 @@
   <div class="top-bar">
     <div class="title">
       🏡 民宿訂房管理系統
-      <span id="syncStatus" class="status-badge">正在載入試算表...</span>
+      <span id="syncStatus" class="status-badge">連線中...</span>
     </div>
     <div class="controls">
       <label>月份：<input type="month" id="monthPicker"></label>
-      <button onclick="fetchSheetData()">重新整理試算表</button>
+      <button onclick="exportData()">下載 JSON 備份</button>
     </div>
   </div>
 
@@ -165,11 +175,11 @@
       <thead>
         <tr>
           <th>日期 / 星期</th>
-          <th class="th-room">房間 1</th>
-          <th class="th-room">房間 2</th>
-          <th class="th-room">房間 3</th>
-          <th class="th-room">房間 4</th>
-          <th class="th-room">房間 5</th>
+          <th id="th-room1" class="th-room" onclick="renameRoom(1)">房間 1 ✏️</th>
+          <th id="th-room2" class="th-room" onclick="renameRoom(2)">房間 2 ✏️</th>
+          <th id="th-room3" class="th-room" onclick="renameRoom(3)">房間 3 ✏️</th>
+          <th id="th-room4" class="th-room" onclick="renameRoom(4)">房間 4 ✏️</th>
+          <th id="th-room5" class="th-room" onclick="renameRoom(5)">房間 5 ✏️</th>
           <th>當日總計</th>
         </tr>
       </thead>
@@ -185,10 +195,24 @@
   </div>
 
   <script>
-    // ⚠️ 請填入步驟二取得的 Google Apps Script 網頁應用程式網址
-    const SCRIPT_URL = "貼上你的Apps_Script網址";
+    // 已帶入您的專屬 Firebase 金鑰設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyANxYr_MF89rc3mocTMQBFxJ9pVuv8vU2Y",
+      authDomain: "house-78fc5.firebaseapp.com",
+      projectId: "house-78fc5",
+      storageBucket: "house-78fc5.firebasestorage.app",
+      messagingSenderId: "709172787551",
+      appId: "1:709172787551:web:dc56d7f0d4278cffbd9eea"
+    };
 
-    let allBookings = {};
+    // 初始化 Firebase 與 Firestore
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    let roomNames = ['101 房', '102 房', '201 房', '202 房', '301 房'];
+    let currentMonthData = {};
+    let unsubscribeSnapshot = null;
+
     const today = new Date();
     const currentYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
     const monthPicker = document.getElementById('monthPicker');
@@ -200,30 +224,61 @@
       badge.className = `status-badge status-${type}`;
     }
 
+    // 監聽房間名稱設定（改房間名也會自動雲端同步）
+    function listenToRoomSettings() {
+      db.collection('settings').doc('rooms').onSnapshot(doc => {
+        if (doc.exists && doc.data().names) {
+          roomNames = doc.data().names;
+        }
+        renderRoomHeaders();
+      }, err => {
+        console.error("讀取房型失敗:", err);
+      });
+    }
+
+    function renderRoomHeaders() {
+      for (let i = 1; i <= 5; i++) {
+        document.getElementById(`th-room${i}`).innerText = `${roomNames[i - 1]} ✏️`;
+      }
+    }
+
+    function renameRoom(index) {
+      const newName = prompt('請輸入新的房間名稱：', roomNames[index - 1]);
+      if (newName && newName.trim() !== '') {
+        roomNames[index - 1] = newName.trim();
+        db.collection('settings').doc('rooms').set({ names: roomNames });
+      }
+    }
+
     function getDaysInMonth(year, month) {
       return new Date(year, month, 0).getDate();
     }
 
-    // 從 Google 試算表讀取資料
-    async function fetchSheetData() {
-      if (SCRIPT_URL === "貼上你的Apps_Script網址") {
-        setSyncStatus('尚未設定 SCRIPT_URL', 'syncing');
-        renderTable();
-        return;
+    // 即時監聽當月訂房資料（手機/電腦一有更新立刻雙向同步）
+    function listenToMonthData() {
+      if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
       }
-      setSyncStatus('同步試算表中...', 'syncing');
-      try {
-        const res = await fetch(SCRIPT_URL);
-        allBookings = await res.json();
-        renderTable();
-        setSyncStatus('試算表已同步', 'synced');
-      } catch (err) {
-        console.error(err);
-        setSyncStatus('讀取失敗', 'syncing');
-      }
+
+      const selectedMonth = monthPicker.value;
+      setSyncStatus('同步中...', 'syncing');
+
+      unsubscribeSnapshot = db.collection('bookings')
+        .where('month', '==', selectedMonth)
+        .onSnapshot(snapshot => {
+          currentMonthData = {};
+          snapshot.forEach(doc => {
+            currentMonthData[doc.id] = doc.data();
+          });
+          renderTableRows();
+          setSyncStatus('雲端已同步', 'synced');
+        }, error => {
+          console.error("連線錯誤:", error);
+          setSyncStatus('連線異常', 'syncing');
+        });
     }
 
-    function renderTable() {
+    function renderTableRows() {
       const [year, month] = monthPicker.value.split('-').map(Number);
       const daysCount = getDaysInMonth(year, month);
       const tbody = document.getElementById('tableBody');
@@ -240,7 +295,7 @@
         const dayOfWeek = dateObj.getDay();
         const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
 
-        const dayData = allBookings[dateKey] || {};
+        const dayData = currentMonthData[dateKey] || {};
         let rowTotal = 0;
 
         const tr = document.createElement('tr');
@@ -260,19 +315,19 @@
 
           const tdRoom = document.createElement('td');
           tdRoom.className = 'room-col';
-          const infoId = `info-${dateKey}-${roomKey}`;
-          const priceId = `price-${dateKey}-${roomKey}`;
+          const infoInputId = `info-${dateKey}-${roomKey}`;
+          const priceInputId = `price-${dateKey}-${roomKey}`;
 
           tdRoom.innerHTML = `
             <div class="cell-box">
-              <textarea id="${infoId}" class="input-info" placeholder="客人 / 備註" data-date="${dateKey}" data-room="${roomKey}" data-field="info">${rData.info || ''}</textarea>
-              <input id="${priceId}" type="number" class="input-price" placeholder="金額" value="${rData.price || ''}" data-date="${dateKey}" data-room="${roomKey}" data-field="price">
+              <textarea id="${infoInputId}" class="input-info" placeholder="客人姓名 / 電話" data-date="${dateKey}" data-room="${roomKey}" data-field="info">${rData.info || ''}</textarea>
+              <input id="${priceInputId}" type="number" class="input-price" placeholder="金額" value="${rData.price || ''}" data-date="${dateKey}" data-room="${roomKey}" data-field="price">
             </div>
           `;
           tr.appendChild(tdRoom);
         }
 
-        // 當日總計
+        // 當日合計
         const tdTotal = document.createElement('td');
         tdTotal.className = 'total-col';
         tdTotal.id = `total-${dateKey}`;
@@ -283,61 +338,62 @@
       }
 
       calcGrandTotal();
-      bindEvents();
+      bindInputEvents();
 
       if (activeElId) {
         const el = document.getElementById(activeElId);
-        if (el) el.focus();
+        if (el) {
+          el.focus();
+          const val = el.value;
+          el.value = '';
+          el.value = val;
+        }
       }
     }
 
     let saveTimeout = null;
 
-    function bindEvents() {
+    function bindInputEvents() {
       const inputs = document.querySelectorAll('#tableBody input, #tableBody textarea');
       inputs.forEach(input => {
-        input.addEventListener('change', (e) => {
+        input.addEventListener('input', (e) => {
           const date = e.target.dataset.date;
           const room = e.target.dataset.room;
           const field = e.target.dataset.field;
           const val = e.target.value;
 
-          if (!allBookings[date]) allBookings[date] = {};
-          if (!allBookings[date][room]) allBookings[date][room] = { info: '', price: '' };
-
-          allBookings[date][room][field] = val;
+          if (!currentMonthData[date]) {
+            currentMonthData[date] = { month: monthPicker.value };
+          }
+          if (!currentMonthData[date][room]) {
+            currentMonthData[date][room] = { info: '', price: '' };
+          }
+          currentMonthData[date][room][field] = val;
 
           if (field === 'price') {
             updateRowTotal(date);
             calcGrandTotal();
           }
 
-          // 寫入 Google 試算表
-          syncToSheet(date, room, allBookings[date][room].info, allBookings[date][room].price);
+          setSyncStatus('儲存中...', 'syncing');
+          clearTimeout(saveTimeout);
+          saveTimeout = setTimeout(() => {
+            db.collection('bookings').doc(date).set({
+              month: monthPicker.value,
+              [room]: currentMonthData[date][room]
+            }, { merge: true }).then(() => {
+              setSyncStatus('雲端已同步', 'synced');
+            }).catch(err => {
+              console.error("存檔失敗:", err);
+              setSyncStatus('存檔失敗', 'syncing');
+            });
+          }, 500);
         });
       });
     }
 
-    async function syncToSheet(date, room, info, price) {
-      if (SCRIPT_URL === "貼上你的Apps_Script網址") return;
-      setSyncStatus('寫入試算表中...', 'syncing');
-
-      try {
-        await fetch(SCRIPT_URL, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ date, room, info: info || '', price: price || '' })
-        });
-        setSyncStatus('試算表已同步', 'synced');
-      } catch (err) {
-        console.error(err);
-        setSyncStatus('儲存失敗', 'syncing');
-      }
-    }
-
     function updateRowTotal(dateKey) {
-      const dayData = allBookings[dateKey] || {};
+      const dayData = currentMonthData[dateKey] || {};
       let sum = 0;
       for (let r = 1; r <= 5; r++) {
         sum += parseFloat(dayData[`r${r}`]?.price) || 0;
@@ -357,8 +413,24 @@
       document.getElementById('grandTotal').innerText = grand.toLocaleString();
     }
 
-    monthPicker.addEventListener('change', renderTable);
-    fetchSheetData();
+    function exportData() {
+      db.collection('bookings').get().then(snapshot => {
+        const all = {};
+        snapshot.forEach(doc => { all[doc.id] = doc.data(); });
+        const backup = { rooms: roomNames, bookings: all };
+        const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `民宿資料備份_${new Date().toISOString().slice(0,10)}.json`;
+        a.click();
+      });
+    }
+
+    monthPicker.addEventListener('change', listenToMonthData);
+
+    // 啟動監聽
+    listenToRoomSettings();
+    listenToMonthData();
   </script>
 </body>
 </html>
