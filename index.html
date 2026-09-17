@@ -2,8 +2,9 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>51民宿預約與財務管理系統 V.260917.02</title>
+  <!-- 支援手機端自由捏合縮放 (方案 A) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=0.3, maximum-scale=3.0, user-scalable=yes">
+  <title>51民宿預約與財務管理系統 V.260917.03</title>
   
   <!-- 載入 Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
@@ -19,7 +20,7 @@
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      margin: 15px;
+      margin: 12px;
       background-color: #f8fafc;
       color: #333;
     }
@@ -32,7 +33,7 @@
       gap: 10px;
     }
     .title {
-      font-size: 20px;
+      font-size: 19px;
       font-weight: bold;
       color: var(--primary-color);
       display: flex;
@@ -120,7 +121,7 @@
       background: #1d4ed8;
     }
 
-    /* 表格容器與凍結頭部 */
+    /* 表格雙向凍結核心樣式 (方案 A) */
     .table-container {
       overflow: auto;
       max-height: 75vh;
@@ -129,12 +130,13 @@
       box-shadow: 0 1px 3px rgba(0,0,0,0.08);
       border-radius: 6px;
       position: relative;
+      -webkit-overflow-scrolling: touch;
     }
     table {
       width: 100%;
       border-collapse: separate;
       border-spacing: 0;
-      min-width: 1100px;
+      min-width: 1050px;
     }
     th, td {
       border-right: 1px solid var(--border-color);
@@ -150,6 +152,7 @@
       border-top: 1px solid var(--border-color);
     }
 
+    /* 頂部表頭凍結 */
     thead th {
       position: sticky;
       top: 0;
@@ -158,9 +161,23 @@
       box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
     }
 
-    /* 日期欄位 */
+    /* 左側日期欄凍結 (關鍵功能) */
+    .freeze-left {
+      position: sticky;
+      left: 0;
+      z-index: 5;
+      box-shadow: 2px 0 3px -1px rgba(0, 0, 0, 0.12);
+    }
+    /* 左上角交叉點給予最高層級，防止覆蓋 */
+    thead th.freeze-left {
+      z-index: 30;
+      background-color: #e2e8f0;
+    }
+
+    /* 日期樣式 */
     .date-col {
-      width: 120px;
+      width: 105px;
+      min-width: 105px;
       background-color: #fefce8;
       font-weight: 500;
     }
@@ -184,6 +201,7 @@
       min-width: 155px;
       vertical-align: top;
       padding: 4px;
+      background-color: #fff;
     }
     .cell-box {
       display: flex;
@@ -227,6 +245,7 @@
     }
     .total-col {
       width: 95px;
+      min-width: 95px;
       font-weight: bold;
       color: #b91c1c;
       background-color: #fff1f2;
@@ -297,14 +316,13 @@
       margin-bottom: 15px;
     }
 
-    /* 累計標籤格 */
     .summary-grid {
       display: flex;
-      gap: 15px;
+      gap: 12px;
       justify-content: flex-end;
       align-items: center;
       padding: 8px 12px;
-      font-size: 14px;
+      font-size: 13.5px;
       font-weight: 600;
       flex-wrap: wrap;
     }
@@ -322,7 +340,7 @@
   <div class="top-bar">
     <div class="title">
       🏡 51民宿預約與財務管理系統
-      <span class="version-badge">V.260917.02</span>
+      <span class="version-badge">V.260917.03</span>
       <span id="syncStatus" class="status-badge">連線中...</span>
     </div>
   </div>
@@ -335,18 +353,19 @@
     <button class="tab-btn" onclick="switchTab('tab-accounts')">🔐 設備帳號密碼</button>
   </div>
 
-  <!-- 分頁 1: 訂房紀錄 -->
+  <!-- 分頁 1: 訂房紀錄 (雙向凍結支援) -->
   <div id="tab-bookings" class="tab-content active">
     <div class="controls">
       <label>切換月份：<input type="month" id="bookingMonthPicker"></label>
       <button onclick="exportToExcel()">📊 匯出 Excel 報表</button>
+      <span style="font-size: 12px; color: #64748b;">💡 手機支援向右滑動（日期已固定在左側）與雙指自由縮放</span>
     </div>
 
     <div class="table-container">
       <table id="bookingTable">
         <thead>
           <tr>
-            <th style="width: 120px;">日期 / 星期</th>
+            <th class="date-col freeze-left">日期 / 星期</th>
             <th id="th-room1" onclick="renameRoom(1)" style="cursor:pointer; color:#1e40af;">202 雙人房 ✏️</th>
             <th id="th-room2" onclick="renameRoom(2)" style="cursor:pointer; color:#1e40af;">302 雙人房 ✏️</th>
             <th id="th-room3" onclick="renameRoom(3)" style="cursor:pointer; color:#1e40af;">201 四人房 ✏️</th>
@@ -358,12 +377,12 @@
         <tbody id="bookingTableBody"></tbody>
         <tfoot>
           <tr style="background:#f1f5f9; font-weight:bold;">
-            <td>全月累計</td>
+            <td class="freeze-left" style="background:#f1f5f9;">全月累計</td>
             <td colspan="5"></td>
             <td id="bookingGrandTotal" style="color:#b91c1c; font-size:16px;">0</td>
           </tr>
           <tr style="background:#ffffff;">
-            <td style="font-weight:bold; background:#f8fafc;">收款人累計</td>
+            <td class="freeze-left" style="font-weight:bold; background:#f8fafc;">收款人累計</td>
             <td colspan="6">
               <div class="summary-grid">
                 <span class="summary-item" style="color:#2563eb;">阿文：<span id="sumAwen">0</span> 元</span>
@@ -421,7 +440,7 @@
     </div>
   </div>
 
-  <!-- 分頁 3: 每月支出明細 (含支出者與代墊累計) -->
+  <!-- 分頁 3: 每月支出明細 -->
   <div id="tab-expenses" class="tab-content">
     <div class="controls">
       <label>檢視月份：<input type="month" id="expenseMonthPicker" onchange="listenToMonthExpenses()"></label>
@@ -577,7 +596,7 @@
     }
 
     // ==========================================
-    // 1. 訂房紀錄邏輯
+    // 1. 訂房紀錄邏輯 (左側日期凍結)
     // ==========================================
     function listenToRoomSettings() {
       db.collection('settings').doc('rooms').onSnapshot(doc => {
@@ -642,8 +661,9 @@
         let rowTotal = 0;
         const tr = document.createElement('tr');
 
+        // 日期欄：加入 freeze-left 類別
         const tdDate = document.createElement('td');
-        let dateClass = 'date-col';
+        let dateClass = 'date-col freeze-left';
         if (holidayName) dateClass += ' holiday';
         else if (isWeekend) dateClass += ' weekend';
         tdDate.className = dateClass;
@@ -930,7 +950,7 @@
     }
 
     // ==========================================
-    // 3. 每月支出明細 (含支出者與代墊統計)
+    // 3. 每月支出明細
     // ==========================================
     function listenToMonthExpenses() {
       if (unsubscribeExpenses) unsubscribeExpenses();
@@ -1118,7 +1138,7 @@
     }
 
     // ==========================================
-    // 5. 直接匯出 Excel (.xlsx) 報表
+    // 5. 匯出 Excel
     // ==========================================
     async function exportToExcel() {
       setSyncStatus('產生 Excel 中...', 'syncing');
