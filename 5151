@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>民宿房況與訂房管理系統</title>
+  <style>
+    :root {
+      --primary-color: #2c3e50;
+      --bg-header: #f7f3e8;
+      --bg-weekend: #fff8e7;
+      --border-color: #d1d5db;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      margin: 20px;
+      background-color: #f8fafc;
+      color: #333;
+    }
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .title {
+      font-size: 22px;
+      font-weight: bold;
+      color: var(--primary-color);
+    }
+    .controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    button {
+      padding: 6px 14px;
+      border: 1px solid #ccc;
+      background: #ffffff;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    button:hover {
+      background: #f1f5f9;
+    }
+    button.primary {
+      background: #2563eb;
+      color: white;
+      border-color: #1d4ed8;
+    }
+    button.primary:hover {
+      background: #1d4ed8;
+    }
+    .table-container {
+      overflow-x: auto;
+      background: white;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 900px;
+    }
+    th, td {
+      border: 1px solid var(--border-color);
+      padding: 6px 8px;
+      text-align: center;
+    }
+    th {
+      background-color: #e2e8f0;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .date-col {
+      width: 120px;
+      background-color: #fefce8;
+      font-weight: 500;
+      font-size: 14px;
+    }
+    .weekend {
+      background-color: #fef3c7 !important;
+    }
+    .room-col {
+      min-width: 140px;
+      vertical-align: top;
+      padding: 4px;
+    }
+    .cell-box {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .input-info {
+      width: 100%;
+      border: 1px solid #e5e7eb;
+      border-radius: 2px;
+      padding: 4px 6px;
+      font-size: 13px;
+      box-sizing: border-box;
+      resize: vertical;
+      min-height: 48px;
+      line-height: 1.3;
+    }
+    .input-price {
+      width: 100%;
+      border: 1px solid #e5e7eb;
+      border-radius: 2px;
+      padding: 3px 6px;
+      font-size: 13px;
+      text-align: right;
+      box-sizing: border-box;
+      background-color: #fffbeb;
+    }
+    .input-info:focus, .input-price:focus {
+      outline: 2px solid #3b82f6;
+      background-color: #fff;
+    }
+    .total-col {
+      width: 90px;
+      font-weight: bold;
+      color: #b91c1c;
+      font-size: 15px;
+      background-color: #fdf2f8;
+    }
+    .status-msg {
+      font-size: 12px;
+      color: #16a34a;
+      margin-left: 8px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="top-bar">
+    <div class="title">🏡 民宿預約與房態管理系統</div>
+    <div class="controls">
+      <label>切換月份：<input type="month" id="monthPicker"></label>
+      <button onclick="exportData()">備份匯出 (JSON)</button>
+      <button onclick="document.getElementById('fileInput').click()">匯入還原</button>
+      <input type="file" id="fileInput" style="display:none" onchange="importData(event)">
+      <span id="saveStatus" class="status-msg">已自動儲存</span>
+    </div>
+  </div>
+
+  <div class="table-container">
+    <table id="bookingTable">
+      <thead>
+        <tr>
+          <th>日期 / 星期</th>
+          <th id="th-room1" onclick="renameRoom(1)">房間 1 ✏️</th>
+          <th id="th-room2" onclick="renameRoom(2)">房間 2 ✏️</th>
+          <th id="th-room3" onclick="renameRoom(3)">房間 3 ✏️</th>
+          <th id="th-room4" onclick="renameRoom(4)">房間 4 ✏️</th>
+          <th id="th-room5" onclick="renameRoom(5)">房間 5 ✏️</th>
+          <th>當日總計</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        <!-- 動態生成日期行 -->
+      </tbody>
+      <tfoot>
+        <tr style="background:#f1f5f9; font-weight:bold;">
+          <td>本月合計</td>
+          <td colspan="5"></td>
+          <td id="grandTotal" style="color:#b91c1c; font-size:16px;">0</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'HOMESTAY_BOOKINGS_V1';
+    const ROOM_NAMES_KEY = 'HOMESTAY_ROOM_NAMES_V1';
+
+    let roomNames = JSON.parse(localStorage.getItem(ROOM_NAMES_KEY)) || [
+      '101 房', '102 房', '201 房', '202 房', '301 房'
+    ];
+
+    // 初始化月份為本月
+    const today = new Date();
+    const currentYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    const monthPicker = document.getElementById('monthPicker');
+    monthPicker.value = currentYearMonth;
+
+    function renderRoomHeaders() {
+      for (let i = 1; i <= 5; i++) {
+        document.getElementById(`th-room${i}`).innerText = `${roomNames[i - 1]} ✏️`;
+      }
+    }
+
+    function renameRoom(index) {
+      const newName = prompt('請輸入新的房間名稱：', roomNames[index - 1]);
+      if (newName && newName.trim() !== '') {
+        roomNames[index - 1] = newName.trim();
+        localStorage.setItem(ROOM_NAMES_KEY, JSON.stringify(roomNames));
+        renderRoomHeaders();
+      }
+    }
+
+    function getStorageData() {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+    }
+
+    function saveStorageData(data) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      showSaveNotice();
+    }
+
+    function showSaveNotice() {
+      const el = document.getElementById('saveStatus');
+      el.style.opacity = '1';
+      clearTimeout(window.saveTimer);
+      window.saveTimer = setTimeout(() => {
+        el.style.opacity = '0';
+      }, 1200);
+    }
+
+    function getDaysInMonth(year, month) {
+      return new Date(year, month, 0).getDate();
+    }
+
+    function renderTable() {
+      const [year, month] = monthPicker.value.split('-').map(Number);
+      const daysCount = getDaysInMonth(year, month);
+      const allData = getStorageData();
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = '';
+
+      const weekNames = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+
+      for (let day = 1; day <= daysCount; day++) {
+        const dateObj = new Date(year, month - 1, day);
+        const dayOfWeek = dateObj.getDay();
+        const dateKey = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dayData = allData[dateKey] || {};
+
+        const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+        const tr = document.createElement('tr');
+
+        // 日期欄
+        const tdDate = document.createElement('td');
+        tdDate.className = `date-col ${isWeekend ? 'weekend' : ''}`;
+        tdDate.innerHTML = `${month}月${day}日<br><small>${weekNames[dayOfWeek]}</small>`;
+        tr.appendChild(tdDate);
+
+        // 5 間房間
+        let rowTotal = 0;
+        for (let r = 1; r <= 5; r++) {
+          const roomKey = `r${r}`;
+          const rData = dayData[roomKey] || { info: '', price: '' };
+          const priceNum = parseFloat(rData.price) || 0;
+          rowTotal += priceNum;
+
+          const tdRoom = document.createElement('td');
+          tdRoom.className = 'room-col';
+          tdRoom.innerHTML = `
+            <div class="cell-box">
+              <textarea class="input-info" placeholder="客人姓名 / 電話 / 來源" data-date="${dateKey}" data-room="${roomKey}" data-field="info">${rData.info}</textarea>
+              <input type="number" class="input-price" placeholder="金額" value="${rData.price}" data-date="${dateKey}" data-room="${roomKey}" data-field="price">
+            </div>
+          `;
+          tr.appendChild(tdRoom);
+        }
+
+        // 當日總額
+        const tdTotal = document.createElement('td');
+        tdTotal.className = 'total-col';
+        tdTotal.id = `total-${dateKey}`;
+        tdTotal.innerText = rowTotal > 0 ? rowTotal.toLocaleString() : '0';
+        tr.appendChild(tdTotal);
+
+        tbody.appendChild(tr);
+      }
+
+      calcGrandTotal();
+      bindEvents();
+    }
+
+    function bindEvents() {
+      const inputs = document.querySelectorAll('#tableBody input, #tableBody textarea');
+      inputs.forEach(input => {
+        input.addEventListener('input', (e) => {
+          const date = e.target.dataset.date;
+          const room = e.target.dataset.room;
+          const field = e.target.dataset.field;
+          const val = e.target.value;
+
+          const allData = getStorageData();
+          if (!allData[date]) allData[date] = {};
+          if (!allData[date][room]) allData[date][room] = { info: '', price: '' };
+
+          allData[date][room][field] = val;
+          saveStorageData(allData);
+
+          if (field === 'price') {
+            updateRowTotal(date);
+            calcGrandTotal();
+          }
+        });
+      });
+    }
+
+    function updateRowTotal(dateKey) {
+      const allData = getStorageData();
+      const dayData = allData[dateKey] || {};
+      let sum = 0;
+      for (let r = 1; r <= 5; r++) {
+        const val = parseFloat(dayData[`r${r}`]?.price) || 0;
+        sum += val;
+      }
+      const totalCell = document.getElementById(`total-${dateKey}`);
+      if (totalCell) {
+        totalCell.innerText = sum > 0 ? sum.toLocaleString() : '0';
+      }
+    }
+
+    function calcGrandTotal() {
+      const totals = document.querySelectorAll('.total-col');
+      let grand = 0;
+      totals.forEach(t => {
+        grand += parseFloat(t.innerText.replace(/,/g, '')) || 0;
+      });
+      document.getElementById('grandTotal').innerText = grand.toLocaleString();
+    }
+
+    // 匯出備份
+    function exportData() {
+      const backup = {
+        rooms: roomNames,
+        data: getStorageData()
+      };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `民宿訂房備份_${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+    }
+
+    // 匯入備份
+    function importData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (imported.rooms) localStorage.setItem(ROOM_NAMES_KEY, JSON.stringify(imported.rooms));
+          if (imported.data) localStorage.setItem(STORAGE_KEY, JSON.stringify(imported.data));
+          alert('資料還原成功！');
+          location.reload();
+        } catch (err) {
+          alert('匯入失敗：檔案格式不正確');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    monthPicker.addEventListener('change', renderTable);
+
+    // 啟動
+    renderRoomHeaders();
+    renderTable();
+  </script>
+</body>
+</html>
