@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>51民宿預約與財務管理系統 V.260917.01</title>
+  <title>51民宿預約與財務管理系統 V.260917.02</title>
   
   <!-- 載入 Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
@@ -297,7 +297,8 @@
       margin-bottom: 15px;
     }
 
-    .payee-summary-grid {
+    /* 累計標籤格 */
+    .summary-grid {
       display: flex;
       gap: 15px;
       justify-content: flex-end;
@@ -305,8 +306,9 @@
       padding: 8px 12px;
       font-size: 14px;
       font-weight: 600;
+      flex-wrap: wrap;
     }
-    .payee-item {
+    .summary-item {
       padding: 3px 8px;
       border-radius: 4px;
       background: #f1f5f9;
@@ -316,11 +318,11 @@
 </head>
 <body>
 
-  <!-- 頂部列：包含標題與版本流水號 -->
+  <!-- 頂部列 -->
   <div class="top-bar">
     <div class="title">
       🏡 51民宿預約與財務管理系統
-      <span class="version-badge">V.260917.01</span>
+      <span class="version-badge">V.260917.02</span>
       <span id="syncStatus" class="status-badge">連線中...</span>
     </div>
   </div>
@@ -363,11 +365,11 @@
           <tr style="background:#ffffff;">
             <td style="font-weight:bold; background:#f8fafc;">收款人累計</td>
             <td colspan="6">
-              <div class="payee-summary-grid">
-                <span class="payee-item" style="color:#2563eb;">阿文：<span id="sumAwen">0</span> 元</span>
-                <span class="payee-item" style="color:#7c3aed;">榕珍：<span id="sumRong">0</span> 元</span>
-                <span class="payee-item" style="color:#d97706;">媽媽：<span id="sumMom">0</span> 元</span>
-                <span class="payee-item" style="color:#64748b;">未收款：<span id="sumUnpaid">0</span> 元</span>
+              <div class="summary-grid">
+                <span class="summary-item" style="color:#2563eb;">阿文：<span id="sumAwen">0</span> 元</span>
+                <span class="summary-item" style="color:#7c3aed;">榕珍：<span id="sumRong">0</span> 元</span>
+                <span class="summary-item" style="color:#d97706;">媽媽：<span id="sumMom">0</span> 元</span>
+                <span class="summary-item" style="color:#64748b;">未收款：<span id="sumUnpaid">0</span> 元</span>
               </div>
             </td>
           </tr>
@@ -419,7 +421,7 @@
     </div>
   </div>
 
-  <!-- 分頁 3: 每月支出明細 -->
+  <!-- 分頁 3: 每月支出明細 (含支出者與代墊累計) -->
   <div id="tab-expenses" class="tab-content">
     <div class="controls">
       <label>檢視月份：<input type="month" id="expenseMonthPicker" onchange="listenToMonthExpenses()"></label>
@@ -428,6 +430,11 @@
     <div class="common-form">
       <strong>➕ 新增支出：</strong>
       <input type="date" id="expDate" required>
+      <select id="expPayer" required style="font-weight:600; color:#1e40af;">
+        <option value="阿文">阿文</option>
+        <option value="媽媽">媽媽</option>
+        <option value="榕珍">榕珍</option>
+      </select>
       <select id="expCategory" required>
         <option value="booking佣金">booking佣金</option>
         <option value="水費">水費</option>
@@ -440,7 +447,7 @@
         <option value="房貸">房貸</option>
       </select>
       <input type="number" id="expAmount" placeholder="金額 (NT$)" style="width:120px;" required>
-      <input type="text" id="expNote" placeholder="說明 / 備註" style="width:200px;">
+      <input type="text" id="expNote" placeholder="說明 / 備註" style="width:180px;">
       <button class="btn-primary" onclick="addExpense()">送出儲存</button>
     </div>
 
@@ -449,8 +456,9 @@
         <thead>
           <tr>
             <th style="width: 120px;">支出日期</th>
-            <th style="width: 140px;">分類項目</th>
-            <th style="width: 140px;">金額</th>
+            <th style="width: 110px;">支出者 (代墊)</th>
+            <th style="width: 130px;">分類項目</th>
+            <th style="width: 130px;">金額</th>
             <th>詳細備註</th>
             <th style="width: 80px;">操作</th>
           </tr>
@@ -458,9 +466,19 @@
         <tbody id="expenseTableBody"></tbody>
         <tfoot>
           <tr style="background:#f1f5f9; font-weight:bold;">
-            <td colspan="2">當月明細小計</td>
+            <td colspan="3">當月明細總計</td>
             <td id="expenseMonthTotal" style="color:#b91c1c; font-size:15px; text-align:right;">0</td>
             <td colspan="2"></td>
+          </tr>
+          <tr style="background:#ffffff;">
+            <td style="font-weight:bold; background:#f8fafc;">代墊累計</td>
+            <td colspan="5">
+              <div class="summary-grid">
+                <span class="summary-item" style="color:#2563eb;">阿文代墊：<span id="expSumAwen">0</span> 元</span>
+                <span class="summary-item" style="color:#d97706;">媽媽代墊：<span id="expSumMom">0</span> 元</span>
+                <span class="summary-item" style="color:#7c3aed;">榕珍代墊：<span id="expSumRong">0</span> 元</span>
+              </div>
+            </td>
           </tr>
         </tfoot>
       </table>
@@ -912,7 +930,7 @@
     }
 
     // ==========================================
-    // 3. 每月支出明細
+    // 3. 每月支出明細 (含支出者與代墊統計)
     // ==========================================
     function listenToMonthExpenses() {
       if (unsubscribeExpenses) unsubscribeExpenses();
@@ -939,16 +957,26 @@
       const tbody = document.getElementById('expenseTableBody');
       tbody.innerHTML = '';
       let monthTotal = 0;
+      let payerTotals = { '阿文': 0, '媽媽': 0, '榕珍': 0 };
 
       if (currentMonthExpenses.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="color:#94a3b8; padding:18px;">本月份尚無明細紀錄，請於上方填寫新增。</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="color:#94a3b8; padding:18px;">本月份尚無明細紀錄，請於上方填寫新增。</td></tr>`;
       } else {
         currentMonthExpenses.forEach(item => {
           const amt = parseFloat(item.amount) || 0;
+          const payer = item.payer || '阿文';
           monthTotal += amt;
+
+          if (payerTotals[payer] !== undefined) {
+            payerTotals[payer] += amt;
+          } else {
+            payerTotals['阿文'] += amt;
+          }
+
           const tr = document.createElement('tr');
           tr.innerHTML = `
             <td>${item.date}</td>
+            <td><span style="font-weight:600; color:#1e40af;">${payer}</span></td>
             <td><span style="font-weight:600; color:#1e293b;">${item.category}</span></td>
             <td style="text-align:right; font-weight:600; color:#b91c1c;">${amt.toLocaleString()}</td>
             <td style="text-align:left; color:#475569;">${item.note || '-'}</td>
@@ -959,10 +987,14 @@
       }
 
       document.getElementById('expenseMonthTotal').innerText = monthTotal.toLocaleString();
+      document.getElementById('expSumAwen').innerText = payerTotals['阿文'].toLocaleString();
+      document.getElementById('expSumMom').innerText = payerTotals['媽媽'].toLocaleString();
+      document.getElementById('expSumRong').innerText = payerTotals['榕珍'].toLocaleString();
     }
 
     function addExpense() {
       const date = document.getElementById('expDate').value;
+      const payer = document.getElementById('expPayer').value;
       const category = document.getElementById('expCategory').value;
       const amount = parseFloat(document.getElementById('expAmount').value);
       const note = document.getElementById('expNote').value.trim();
@@ -976,7 +1008,7 @@
       setSyncStatus('新增支出中...', 'syncing');
 
       db.collection('expenses').add({
-        date, month, category, amount, note,
+        date, month, payer, category, amount, note,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       }).then(() => {
         document.getElementById('expAmount').value = '';
@@ -1094,7 +1126,7 @@
       try {
         const wb = XLSX.utils.book_new();
 
-        // 1. 訂房紀錄表
+        // 1. 訂房明細
         const bookingSnapshot = await db.collection('bookings').get();
         const bookingRows = [
           ["日期", "房號/名稱", "旅客資訊", "金額", "收款人"]
@@ -1121,16 +1153,17 @@
         const wsBookings = XLSX.utils.aoa_to_sheet(bookingRows);
         XLSX.utils.book_append_sheet(wb, wsBookings, "訂房明細");
 
-        // 2. 支出明細表
+        // 2. 支出明細 (含支出代墊人)
         const expSnapshot = await db.collection('expenses').get();
         const expRows = [
-          ["支出日期", "月份", "分類項目", "金額", "備註"]
+          ["支出日期", "月份", "支出者(代墊)", "分類項目", "金額", "備註"]
         ];
         expSnapshot.forEach(doc => {
           const d = doc.data();
           expRows.push([
             d.date || '',
             d.month || '',
+            d.payer || '阿文',
             d.category || '',
             parseFloat(d.amount) || 0,
             d.note || ''
@@ -1139,7 +1172,7 @@
         const wsExpenses = XLSX.utils.aoa_to_sheet(expRows);
         XLSX.utils.book_append_sheet(wb, wsExpenses, "支出明細");
 
-        // 3. 設備帳密表
+        // 3. 設備帳密
         const accSnapshot = await db.collection('accounts').get();
         const accRows = [
           ["設備/服務項目", "帳號/SSID", "密碼/PIN碼", "備註說明"]
