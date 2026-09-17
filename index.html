@@ -2,8 +2,9 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-  <title>51民宿預約與財務管理系統 V.260917.05</title>
+  <!-- 完全開放手機端自由縮放限制，最小可縮至 0.1 讓五間房全顯示 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=0.1, maximum-scale=5.0, user-scalable=yes">
+  <title>51民宿預約與財務管理系統 V.260917.06</title>
   
   <!-- 載入 Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
@@ -58,7 +59,7 @@
     .status-syncing { background: #fef08a; color: #854d0e; }
     .status-synced { background: #bbf7d0; color: #166534; }
 
-    /* 分頁切換列優化 */
+    /* 分頁切換列 */
     .tab-bar {
       display: flex;
       gap: 8px;
@@ -83,10 +84,7 @@
       white-space: nowrap;
       transition: all 0.2s;
     }
-    .tab-btn.active {
-      background: var(--accent-color);
-      color: white;
-    }
+    .tab-btn.active { background: var(--accent-color); color: white; }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
@@ -106,24 +104,16 @@
     }
     button { cursor: pointer; transition: all 0.2s; }
     button:hover { background: #f1f5f9; }
-    button.btn-primary {
-      background: var(--accent-color);
-      color: white;
-      border: none;
-      font-weight: 600;
-    }
+    button.btn-primary { background: var(--accent-color); color: white; border: none; font-weight: 600; }
     button.btn-primary:hover { background: #1d4ed8; }
 
-    /* 表格容器與雙向凍結 */
+    /* 表格容器 (移除 overflow 以支援手機自由縮放) */
     .table-container {
-      overflow: auto;
-      height: 75vh;
       background: white;
       border: 1px solid var(--border-color);
       box-shadow: 0 1px 3px rgba(0,0,0,0.08);
       border-radius: 6px;
       position: relative;
-      -webkit-overflow-scrolling: touch;
     }
     table {
       width: 100%;
@@ -157,110 +147,33 @@
       background-color: #fefce8;
       box-shadow: 2px 0 3px -1px rgba(0, 0, 0, 0.1);
     }
-    thead th.freeze-left {
-      z-index: 30;
-      background-color: #e2e8f0;
-    }
+    thead th.freeze-left { z-index: 30; background-color: #e2e8f0; }
 
-    /* 縮窄日期欄位 (不換行) */
-    .date-col {
-      width: 75px;
-      min-width: 75px;
-      font-weight: 500;
-      font-size: 12px;
-      white-space: nowrap;
-    }
+    /* 日期樣式 */
+    .date-col { width: 75px; min-width: 75px; font-weight: 500; font-size: 12px; white-space: nowrap; }
     .weekend { background-color: #fef3c7 !important; }
-    .holiday {
-      background-color: #fee2e2 !important;
-      border-left: 4px solid #ef4444 !important;
-    }
-    .holiday-tag {
-      display: inline-block;
-      font-size: 11px;
-      color: #b91c1c;
-      font-weight: bold;
-      background: #fecaca;
-      padding: 1px 4px;
-      border-radius: 4px;
-      margin-top: 2px;
-    }
+    .holiday { background-color: #fee2e2 !important; border-left: 4px solid #ef4444 !important; }
+    .holiday-tag { display: inline-block; font-size: 11px; color: #b91c1c; font-weight: bold; background: #fecaca; padding: 1px 4px; border-radius: 4px; margin-top: 2px; }
 
-    /* 房間輸入欄位 */
-    .room-col {
-      min-width: 140px;
-      vertical-align: top;
-      background-color: #fff;
-    }
-    .cell-box {
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-    }
-    .input-info {
-      width: 100%;
-      border: 1px solid #e2e8f0;
-      border-radius: 3px;
-      padding: 4px 6px;
-      font-size: 13px;
-      box-sizing: border-box;
-      resize: vertical; /* 允許垂直調整大小 */
-      min-height: 44px;
-      line-height: 1.3;
-    }
-    .price-row {
-      display: flex;
-      gap: 4px;
-      flex-wrap: nowrap;
-    }
-    .input-price {
-      flex: 1;
-      width: 50%;
-      border: 1px solid #e2e8f0;
-      border-radius: 3px;
-      padding: 4px;
-      font-size: 13px;
-      text-align: right;
-      box-sizing: border-box;
-      background-color: #fffbeb;
-      font-weight: 600;
-    }
-    .select-payee {
-      width: 72px;
-      padding: 3px;
-      font-size: 12px;
-      border: 1px solid #cbd5e1;
-      border-radius: 3px;
-      background-color: #fff;
-    }
-    .total-col {
-      width: 90px;
-      min-width: 90px;
-      font-weight: bold;
-      color: #b91c1c;
-      background-color: #fff1f2;
-    }
+    /* 房型顏色區分設計 */
+    .room-col { min-width: 140px; vertical-align: top; }
+    .room-double-th { background-color: #e0f2fe !important; } /* 雙人房標題淡藍 */
+    .room-double-td { background-color: #f0f9ff !important; } /* 雙人房欄位極淡藍 */
+    .room-quad-th { background-color: #ffedd5 !important; } /* 四人房標題淡橘 */
+    .room-quad-td { background-color: #fff7ed !important; } /* 四人房欄位極淡橘 */
+
+    .cell-box { display: flex; flex-direction: column; gap: 3px; }
+    .input-info { width: 100%; border: 1px solid #e2e8f0; border-radius: 3px; padding: 4px 6px; font-size: 13px; box-sizing: border-box; resize: vertical; min-height: 44px; line-height: 1.3; }
+    .price-row { display: flex; gap: 4px; flex-wrap: nowrap; }
+    .input-price { flex: 1; width: 50%; border: 1px solid #e2e8f0; border-radius: 3px; padding: 4px; font-size: 13px; text-align: right; box-sizing: border-box; background-color: #ffffff; font-weight: 600; }
+    .select-payee { width: 72px; padding: 3px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 3px; background-color: #fff; }
+    .total-col { width: 90px; min-width: 90px; font-weight: bold; color: #b91c1c; background-color: #fff1f2; }
 
     /* 營收表特定樣式 */
     .revenue-table th { background-color: #dbeafe !important; white-space: nowrap; }
     .revenue-table .freeze-left { background-color: #f1f5f9; }
-    .month-badge {
-      background-color: #22c55e;
-      color: white;
-      font-weight: bold;
-      padding: 3px 6px;
-      border-radius: 3px;
-      display: inline-block;
-    }
-    .table-input {
-      width: 100%;
-      border: 1px solid transparent;
-      padding: 4px;
-      text-align: right;
-      box-sizing: border-box;
-      font-size: 13.5px;
-      background: transparent;
-    }
+    .month-badge { background-color: #22c55e; color: white; font-weight: bold; padding: 3px 6px; border-radius: 3px; display: inline-block; }
+    .table-input { width: 100%; border: 1px solid transparent; padding: 4px; text-align: right; box-sizing: border-box; font-size: 13.5px; background: transparent; }
     .table-input:hover { border-color: #cbd5e1; background: #fff; }
     .table-input:focus { border-color: #2563eb; background: #fff; outline: none; }
     .cell-surplus { font-weight: bold; color: #1e3a8a; }
@@ -270,42 +183,15 @@
     .btn-delete { color: #dc2626; border: 1px solid #fca5a5; background: #fef2f2; padding: 4px 8px; font-size: 12px; border-radius: 3px; }
     .btn-copy { color: #0284c7; border: 1px solid #bae6fd; background: #f0f9ff; padding: 4px 8px; font-size: 12px; border-radius: 3px; }
 
-    .common-form {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-      background: white;
-      padding: 12px 16px;
-      border-radius: 6px;
-      border: 1px solid var(--border-color);
-      margin-bottom: 15px;
-    }
-    .summary-grid {
-      display: flex;
-      gap: 10px;
-      justify-content: flex-end;
-      align-items: center;
-      font-size: 13.5px;
-      font-weight: 600;
-      flex-wrap: wrap;
-    }
-    .summary-item {
-      padding: 4px 8px;
-      border-radius: 4px;
-      background: #f1f5f9;
-      border: 1px solid #e2e8f0;
-      white-space: nowrap;
-    }
+    .common-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; background: white; padding: 12px 16px; border-radius: 6px; border: 1px solid var(--border-color); margin-bottom: 15px; }
+    .summary-grid { display: flex; gap: 10px; justify-content: flex-end; align-items: center; font-size: 13.5px; font-weight: 600; flex-wrap: wrap; }
+    .summary-item { padding: 4px 8px; border-radius: 4px; background: #f1f5f9; border: 1px solid #e2e8f0; white-space: nowrap; }
 
     /* 手機版 (Mobile) 深度 RWD 優化 */
     @media (max-width: 650px) {
       .common-form { flex-direction: column; align-items: stretch; }
       .common-form strong { margin-bottom: 4px; }
-      .common-form input, .common-form select, .common-form button {
-        width: 100% !important; 
-        font-size: 16px; 
-      }
+      .common-form input, .common-form select, .common-form button { width: 100% !important; font-size: 16px; }
       .controls { flex-direction: column; align-items: stretch; }
       .summary-grid { justify-content: flex-start; }
     }
@@ -316,8 +202,8 @@
   <!-- 頂部列：包含標題與版本流水號 -->
   <div class="top-bar">
     <div class="title">
-      🏡 51民宿預約與財務系統
-      <span class="version-badge">V.260917.05</span>
+      🏡 51民宿預約與財務管理系統
+      <span class="version-badge">V.260917.06</span>
       <span id="syncStatus" class="status-badge">連線中...</span>
     </div>
   </div>
@@ -335,7 +221,7 @@
     <div class="controls">
       <label>切換月份：<input type="month" id="bookingMonthPicker" style="width:140px;"></label>
       <button onclick="exportToExcel()">📊 匯出 Excel 報表</button>
-      <span style="font-size: 12px; color: #64748b;">💡 手機支援雙指縮放，拉大單格備註時整列會自動對齊</span>
+      <span style="font-size: 12px; color: #64748b;">💡 手機支援雙指捏合縮放，可一次查看全部五間房</span>
     </div>
 
     <div class="table-container">
@@ -343,11 +229,11 @@
         <thead>
           <tr>
             <th class="date-col freeze-left">日期 / 星期</th>
-            <th id="th-room1" onclick="renameRoom(1)" style="cursor:pointer; color:#1e40af;">202 雙人房 ✏️</th>
-            <th id="th-room2" onclick="renameRoom(2)" style="cursor:pointer; color:#1e40af;">302 雙人房 ✏️</th>
-            <th id="th-room3" onclick="renameRoom(3)" style="cursor:pointer; color:#1e40af;">201 四人房 ✏️</th>
-            <th id="th-room4" onclick="renameRoom(4)" style="cursor:pointer; color:#1e40af;">301 四人房 ✏️</th>
-            <th id="th-room5" onclick="renameRoom(5)" style="cursor:pointer; color:#1e40af;">401 四人房 ✏️</th>
+            <th id="th-room1" onclick="renameRoom(1)" class="room-double-th" style="cursor:pointer; color:#1e40af;">202 雙人房 ✏️</th>
+            <th id="th-room2" onclick="renameRoom(2)" class="room-double-th" style="cursor:pointer; color:#1e40af;">302 雙人房 ✏️</th>
+            <th id="th-room3" onclick="renameRoom(3)" class="room-quad-th" style="cursor:pointer; color:#1e40af;">201 四人房 ✏️</th>
+            <th id="th-room4" onclick="renameRoom(4)" class="room-quad-th" style="cursor:pointer; color:#1e40af;">301 四人房 ✏️</th>
+            <th id="th-room5" onclick="renameRoom(5)" class="room-quad-th" style="cursor:pointer; color:#1e40af;">401 四人房 ✏️</th>
             <th class="total-col">當日總計</th>
           </tr>
         </thead>
@@ -385,7 +271,9 @@
           <option value="2028">2028</option>
         </select>
       </label>
-      <span style="font-size: 12.5px; color: #64748b;">※ 支出項目會從「每月支出明細」自動累計；也可手動調整。</span>
+      <span style="font-size: 12.5px; color: #64748b;">
+        ※ 結餘 = 營收 - 總支出；「其他支出」已全自動匯入支出明細表的三人代墊總和。
+      </span>
     </div>
 
     <div class="table-container">
@@ -401,7 +289,7 @@
             <th>打工薪水</th>
             <th>薪水</th>
             <th>網路費</th>
-            <th>其他支出</th>
+            <th style="background-color:#fef08a !important;">其他支出</th>
             <th>房貸</th>
             <th style="background-color: #e0e7ff !important;">總支出</th>
             <th style="background-color: #fef08a !important;">結餘</th>
@@ -419,6 +307,9 @@
   <div id="tab-expenses" class="tab-content">
     <div class="controls">
       <label>檢視月份：<input type="month" id="expenseMonthPicker" onchange="listenToMonthExpenses()"></label>
+      <span style="font-size: 12.5px; color: #64748b;">
+        ※ 在此輸入的每一筆金額，都會自動加總並帶入營收總表的「其他支出」欄位中。
+      </span>
     </div>
 
     <div class="common-form">
@@ -445,7 +336,7 @@
       <button class="btn-primary" onclick="addExpense()">送出儲存</button>
     </div>
 
-    <div class="table-container" style="height: auto; max-height: 60vh;">
+    <div class="table-container">
       <table>
         <thead>
           <tr>
@@ -490,7 +381,7 @@
       <button class="btn-primary" onclick="addAccount()">儲存資料</button>
     </div>
 
-    <div class="table-container" style="height: auto; max-height: 60vh;">
+    <div class="table-container">
       <table>
         <thead>
           <tr>
@@ -537,7 +428,7 @@
 
     let roomNames = ['202 雙人房', '302 雙人房', '201 四人房', '301 四人房', '401 四人房'];
     let currentMonthBookings = {};
-    let customRowHeights = {}; // 記憶自訂欄位高度，防止打字存檔時回彈
+    let customRowHeights = {}; 
     let currentMonthExpenses = [];
     let accountsList = [];
     let annualData = {};
@@ -577,23 +468,19 @@
     const textareaObserver = new ResizeObserver(entries => {
       for (const entry of entries) {
         const target = entry.target;
-        if (!target.style.height) continue; // 只處理有被手動拉動(產生 inline height) 的元素
+        if (!target.style.height) continue;
         
         const date = target.dataset.date;
         const newHeight = target.style.height;
         
-        // 若高度已跟紀錄相同，代表是被自動連動更新的，避免無限迴圈
         if (customRowHeights[date] === newHeight) continue;
-        
         customRowHeights[date] = newHeight;
         
         const tr = target.closest('tr');
         if (tr) {
           const allTextareas = tr.querySelectorAll('.input-info');
           allTextareas.forEach(ta => {
-            if (ta !== target && ta.style.height !== newHeight) {
-              ta.style.height = newHeight;
-            }
+            if (ta !== target && ta.style.height !== newHeight) ta.style.height = newHeight;
           });
         }
       }
@@ -629,9 +516,7 @@
         .where('month', '==', monthVal)
         .onSnapshot(snapshot => {
           currentMonthBookings = {};
-          snapshot.forEach(doc => {
-            currentMonthBookings[doc.id] = doc.data();
-          });
+          snapshot.forEach(doc => { currentMonthBookings[doc.id] = doc.data(); });
           renderBookingTable();
           setSyncStatus('雲端已同步', 'synced');
         }, err => {
@@ -663,6 +548,7 @@
         let rowTotal = 0;
         const tr = document.createElement('tr');
 
+        // 日期欄
         const tdDate = document.createElement('td');
         let dateClass = 'date-col freeze-left';
         if (holidayName) dateClass += ' holiday';
@@ -674,6 +560,7 @@
         tdDate.innerHTML = dateHtml;
         tr.appendChild(tdDate);
 
+        // 房型
         for (let r = 1; r <= 5; r++) {
           const roomKey = `r${r}`;
           const rData = dayData[roomKey] || { info: '', price: '', payee: '未收款' };
@@ -687,11 +574,11 @@
           }
 
           const tdRoom = document.createElement('td');
-          tdRoom.className = 'room-col';
+          // 顏色區分
+          tdRoom.className = r <= 2 ? 'room-col room-double-td' : 'room-col room-quad-td';
           const iId = `info-${dateKey}-${roomKey}`;
           const pId = `price-${dateKey}-${roomKey}`;
           
-          // 若之前有手動拉伸高度，重繪時自動復原
           const savedHeight = customRowHeights[dateKey] ? `height: ${customRowHeights[dateKey]};` : '';
 
           tdRoom.innerHTML = `
@@ -731,7 +618,6 @@
       syncMonthRevenueToAnnual(year, month, totalMonthRevenue);
       bindBookingInputs();
 
-      // 為所有 textarea 綁定高度偵測觀察者
       const textareas = document.querySelectorAll('#bookingTableBody .input-info');
       textareas.forEach(ta => textareaObserver.observe(ta));
 
@@ -774,6 +660,9 @@
               [room]: currentMonthBookings[date][room]
             }, { merge: true }).then(() => {
               setSyncStatus('雲端已同步', 'synced');
+              const [y, m] = monthPickerVal.split('-').map(Number);
+              const grand = parseFloat(document.getElementById('bookingGrandTotal').innerText.replace(/,/g, '')) || 0;
+              syncMonthRevenueToAnnual(y, m, grand);
             });
           }, 500);
         });
@@ -820,35 +709,32 @@
       document.getElementById('revYearHeader').innerText = year;
       setSyncStatus(`彙整 ${year} 數據...`, 'syncing');
 
+      // 抓取全年度的支出紀錄
       const expSnapshot = await db.collection('expenses')
         .where('date', '>=', `${year}-01-01`)
         .where('date', '<=', `${year}-12-31`)
         .get();
 
-      const expenseSummary = {};
-      for (let m = 1; m <= 12; m++) {
-        expenseSummary[m] = {};
-        EXP_CATEGORIES.forEach(cat => expenseSummary[m][cat] = 0);
-      }
+      // 只累加總數，不再依賴細項分類，統一放入「其他支出」
+      const expenseMonthlyTotals = {};
+      for (let m = 1; m <= 12; m++) expenseMonthlyTotals[m] = 0;
 
       expSnapshot.forEach(doc => {
         const item = doc.data();
         if (item.date) {
           const m = parseInt(item.date.split('-')[1], 10);
-          if (expenseSummary[m] && expenseSummary[m][item.category] !== undefined) {
-            expenseSummary[m][item.category] += (parseFloat(item.amount) || 0);
-          }
+          expenseMonthlyTotals[m] += (parseFloat(item.amount) || 0);
         }
       });
 
       const doc = await db.collection('annual_finance').doc(year).get();
       annualData = doc.exists ? doc.data() : {};
 
-      renderRevenueTable(year, expenseSummary);
+      renderRevenueTable(year, expenseMonthlyTotals);
       setSyncStatus('雲端已同步', 'synced');
     }
 
-    function renderRevenueTable(year, expenseSummary) {
+    function renderRevenueTable(year, expenseMonthlyTotals) {
       const tbody = document.getElementById('revenueTableBody');
       tbody.innerHTML = '';
 
@@ -876,24 +762,34 @@
 
         let monthTotalExp = 0;
         EXP_CATEGORIES.forEach(cat => {
-          let defaultVal = '';
-          if (cat === '房貸') defaultVal = 31010;
-          if (cat === '網路費') defaultVal = 2170;
-
-          const dynamicExp = expenseSummary ? expenseSummary[m][cat] : 0;
+          let curVal = '';
           const manualSaved = annualData[`m${m}_${cat}`];
-          
-          let curVal = defaultVal;
-          if (dynamicExp > 0) curVal = dynamicExp;
-          else if (manualSaved !== undefined) curVal = manualSaved;
+
+          // 「其他支出」自動從支出明細表累計，若無累計則顯示手動儲存值
+          if (cat === '其他支出') {
+            const dynamicExp = expenseMonthlyTotals[m] || 0;
+            if (dynamicExp > 0) curVal = dynamicExp;
+            else if (manualSaved !== undefined) curVal = manualSaved;
+          } 
+          // 房貸與網路費預設值處理
+          else {
+            if (manualSaved !== undefined) {
+              curVal = manualSaved;
+            } else {
+              if (cat === '房貸') curVal = 31010;
+              if (cat === '網路費') curVal = 2170;
+            }
+          }
 
           const numVal = parseFloat(curVal) || 0;
           monthTotalExp += numVal;
           colTotals[cat] += numVal;
 
           const tdCat = document.createElement('td');
+          // 「其他支出」如果由系統算出，讓數字醒目顯示
+          const isCalculated = (cat === '其他支出' && expenseMonthlyTotals[m] > 0);
           tdCat.innerHTML = `
-            <input type="number" class="table-input" 
+            <input type="number" class="table-input" style="${isCalculated ? 'color:#b91c1c; font-weight:bold;' : ''}"
                    value="${curVal !== '' ? curVal : ''}" placeholder="-" 
                    onchange="updateFinanceCell('${year}', 'm${m}_${cat}', this.value)">
           `;
@@ -912,7 +808,7 @@
         const tdSurplus = document.createElement('td');
         tdSurplus.className = `cell-surplus ${surplus < 0 ? 'negative' : ''}`;
         tdSurplus.style.textAlign = 'right';
-        tdSurplus.innerText = (revVal > 0 || monthTotalExp > 0) ? surplus.toLocaleString() : '0';
+        tdSurplus.innerText = surplus.toLocaleString(); // 結餘直接顯示
         tr.appendChild(tdSurplus);
 
         tbody.appendChild(tr);
@@ -1031,7 +927,7 @@
         
         const year = date.slice(0, 4);
         if (document.getElementById('revenueYearPicker').value === year) {
-          loadRevenueYearData();
+          loadRevenueYearData(); // 若剛好在看當年報表則更新
         }
       }).catch(err => {
         alert('新增支出失敗：' + err.message);
