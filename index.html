@@ -3,16 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>民宿房況與訂房管理系統</title>
+  <title>民宿訂房與營收管理系統</title>
   
-  <!-- 載入 Firebase SDK (CDN 相容版本) -->
+  <!-- 載入 Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
 
   <style>
     :root {
-      --primary-color: #2c3e50;
-      --border-color: #d1d5db;
+      --primary-color: #1e293b;
+      --border-color: #cbd5e1;
+      --accent-color: #2563eb;
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -24,7 +25,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 15px;
+      margin-bottom: 12px;
       flex-wrap: wrap;
       gap: 10px;
     }
@@ -36,15 +37,56 @@
       align-items: center;
       gap: 8px;
     }
+    .status-badge {
+      font-size: 12px;
+      padding: 3px 8px;
+      border-radius: 12px;
+      background: #e2e8f0;
+      color: #475569;
+    }
+    .status-syncing { background: #fef08a; color: #854d0e; }
+    .status-synced { background: #bbf7d0; color: #166534; }
+
+    /* 分頁標籤列樣式 */
+    .tab-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 15px;
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 4px;
+    }
+    .tab-btn {
+      padding: 8px 18px;
+      background: #e2e8f0;
+      border: none;
+      border-radius: 6px 6px 0 0;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 600;
+      color: #475569;
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      background: var(--accent-color);
+      color: white;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+
     .controls {
       display: flex;
       gap: 10px;
       align-items: center;
+      margin-bottom: 12px;
       flex-wrap: wrap;
     }
-    button, input[type="month"] {
+    button, input, select {
       padding: 6px 12px;
-      border: 1px solid #ccc;
+      border: 1px solid #cbd5e1;
       background: #ffffff;
       border-radius: 4px;
       font-size: 14px;
@@ -56,45 +98,46 @@
     button:hover {
       background: #f1f5f9;
     }
+    button.btn-primary {
+      background: var(--accent-color);
+      color: white;
+      border: none;
+    }
+    button.btn-primary:hover {
+      background: #1d4ed8;
+    }
+
+    /* 表格共用樣式 */
     .table-container {
       overflow-x: auto;
       background: white;
       border: 1px solid var(--border-color);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
       border-radius: 6px;
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 900px;
+      min-width: 950px;
     }
     th, td {
       border: 1px solid var(--border-color);
       padding: 6px;
       text-align: center;
+      font-size: 13.5px;
     }
     th {
-      background-color: #e2e8f0;
+      background-color: #f1f5f9;
       font-weight: 600;
-      font-size: 14px;
-      user-select: none;
     }
-    .th-room {
-      cursor: pointer;
-      color: #1e40af;
-    }
-    .th-room:hover {
-      background-color: #cbd5e1;
-    }
+
+    /* 訂房表樣式 */
     .date-col {
       width: 110px;
       background-color: #fefce8;
       font-weight: 500;
-      font-size: 13px;
     }
-    .weekend {
-      background-color: #fef3c7 !important;
-    }
+    .weekend { background-color: #fef3c7 !important; }
     .room-col {
       min-width: 140px;
       vertical-align: top;
@@ -115,7 +158,6 @@
       resize: vertical;
       min-height: 48px;
       line-height: 1.3;
-      background-color: #fff;
     }
     .input-price {
       width: 100%;
@@ -126,76 +168,226 @@
       text-align: right;
       box-sizing: border-box;
       background-color: #fffbeb;
-      font-weight: 500;
-    }
-    .input-info:focus, .input-price:focus {
-      outline: 2px solid #3b82f6;
-      border-color: #3b82f6;
-      background-color: #fff;
+      font-weight: 600;
     }
     .total-col {
       width: 90px;
       font-weight: bold;
       color: #b91c1c;
-      font-size: 15px;
-      background-color: #fdf2f8;
+      background-color: #fff1f2;
     }
-    .status-badge {
+
+    /* 營收紀錄表特定樣式 (完全參考圖片色彩) */
+    .revenue-table th {
+      background-color: #dbeafe; /* 淡藍標題 */
+      font-weight: 600;
+    }
+    .th-month-label {
+      background-color: #bfdbfe !important;
+    }
+    .month-badge {
+      background-color: #22c55e;
+      color: white;
+      font-weight: bold;
+      padding: 3px 0;
+      border-radius: 2px;
+    }
+    .th-surplus {
+      background-color: #fef08a !important; /* 結餘黃底 */
+    }
+    .th-total-exp {
+      background-color: #e0e7ff !important;
+    }
+    .cell-surplus {
+      font-weight: bold;
+      color: #1e3a8a;
+    }
+    .cell-surplus.negative {
+      color: #dc2626; /* 虧損紅色 */
+    }
+    .total-summary-row {
+      background-color: #f8fafc;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    /* 支出明細錄入樣式 */
+    .expense-form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      background: white;
+      padding: 12px 16px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      margin-bottom: 15px;
+    }
+    .expense-list-table th {
+      background: #f1f5f9;
+    }
+    .btn-delete {
+      color: #dc2626;
+      border: 1px solid #fca5a5;
+      background: #fef2f2;
+      padding: 3px 8px;
       font-size: 12px;
-      padding: 2px 8px;
-      border-radius: 12px;
-      background: #e2e8f0;
-      color: #475569;
+      border-radius: 3px;
     }
-    .status-syncing {
-      background: #fef08a;
-      color: #854d0e;
-    }
-    .status-synced {
-      background: #bbf7d0;
-      color: #166534;
+    .btn-delete:hover {
+      background: #fee2e2;
     }
   </style>
 </head>
 <body>
 
+  <!-- 頂端資訊列 -->
   <div class="top-bar">
     <div class="title">
-      🏡 民宿訂房管理系統
+      🏡 民宿預約與財務管理系統
       <span id="syncStatus" class="status-badge">連線中...</span>
-    </div>
-    <div class="controls">
-      <label>月份：<input type="month" id="monthPicker"></label>
-      <button onclick="exportData()">下載 JSON 備份</button>
     </div>
   </div>
 
-  <div class="table-container">
-    <table id="bookingTable">
-      <thead>
-        <tr>
-          <th>日期 / 星期</th>
-          <th id="th-room1" class="th-room" onclick="renameRoom(1)">房間 1 ✏️</th>
-          <th id="th-room2" class="th-room" onclick="renameRoom(2)">房間 2 ✏️</th>
-          <th id="th-room3" class="th-room" onclick="renameRoom(3)">房間 3 ✏️</th>
-          <th id="th-room4" class="th-room" onclick="renameRoom(4)">房間 4 ✏️</th>
-          <th id="th-room5" class="th-room" onclick="renameRoom(5)">房間 5 ✏️</th>
-          <th>當日總計</th>
-        </tr>
-      </thead>
-      <tbody id="tableBody"></tbody>
-      <tfoot>
-        <tr style="background:#f1f5f9; font-weight:bold;">
-          <td>全月合計</td>
-          <td colspan="5"></td>
-          <td id="grandTotal" style="color:#b91c1c; font-size:16px;">0</td>
-        </tr>
-      </tfoot>
-    </table>
+  <!-- 分頁切換鈕 -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('tab-bookings')">📅 訂房紀錄</button>
+    <button class="tab-btn" onclick="switchTab('tab-revenue')">📊 營收紀錄 (年度總表)</button>
+    <button class="tab-btn" onclick="switchTab('tab-expenses')">💸 每月支出明細</button>
+  </div>
+
+  <!-- 分頁 1: 訂房紀錄 -->
+  <div id="tab-bookings" class="tab-content active">
+    <div class="controls">
+      <label>切換月份：<input type="month" id="bookingMonthPicker"></label>
+      <button onclick="exportData()">下載 JSON 備份</button>
+    </div>
+
+    <div class="table-container">
+      <table id="bookingTable">
+        <thead>
+          <tr>
+            <th>日期 / 星期</th>
+            <th id="th-room1" onclick="renameRoom(1)" style="cursor:pointer; color:#1e40af;">房間 1 ✏️</th>
+            <th id="th-room2" onclick="renameRoom(2)" style="cursor:pointer; color:#1e40af;">房間 2 ✏️</th>
+            <th id="th-room3" onclick="renameRoom(3)" style="cursor:pointer; color:#1e40af;">房間 3 ✏️</th>
+            <th id="th-room4" onclick="renameRoom(4)" style="cursor:pointer; color:#1e40af;">房間 4 ✏️</th>
+            <th id="th-room5" onclick="renameRoom(5)" style="cursor:pointer; color:#1e40af;">房間 5 ✏️</th>
+            <th>當日總計</th>
+          </tr>
+        </thead>
+        <tbody id="bookingTableBody"></tbody>
+        <tfoot>
+          <tr style="background:#f1f5f9; font-weight:bold;">
+            <td>全月累計</td>
+            <td colspan="5"></td>
+            <td id="bookingGrandTotal" style="color:#b91c1c; font-size:16px;">0</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- 分頁 2: 營收紀錄 (參考使用者圖片) -->
+  <div id="tab-revenue" class="tab-content">
+    <div class="controls">
+      <label>年度選擇：
+        <select id="revenueYearPicker" onchange="loadRevenueYearData()">
+          <option value="2025">2025</option>
+          <option value="2026" selected>2026</option>
+          <option value="2027">2027</option>
+          <option value="2028">2028</option>
+        </select>
+      </label>
+      <span style="font-size: 13px; color: #64748b;">※ 支出項目會從「每月支出明細」全自動加總彙整過來；營收可手動調整或帶入。</span>
+    </div>
+
+    <div class="table-container">
+      <table class="revenue-table">
+        <thead>
+          <tr>
+            <th class="th-month-label" id="revYearHeader" style="width: 70px;">2026</th>
+            <th>營收</th>
+            <th>booking佣金</th>
+            <th>水費</th>
+            <th>電費</th>
+            <th>清潔費</th>
+            <th>打工薪水</th>
+            <th>薪水</th>
+            <th>網路費</th>
+            <th>其他支出</th>
+            <th>房貸</th>
+            <th class="th-total-exp">總支出</th>
+            <th class="th-surplus">結餘</th>
+          </tr>
+        </thead>
+        <tbody id="revenueTableBody">
+          <!-- 動態生成 1月 ~ 12月 -->
+        </tbody>
+        <tfoot>
+          <tr class="total-summary-row" id="revenueSummaryRow">
+            <!-- 總計列 -->
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- 分頁 3: 每月支出明細 -->
+  <div id="tab-expenses" class="tab-content">
+    <div class="controls">
+      <label>檢視月份：<input type="month" id="expenseMonthPicker" onchange="listenToMonthExpenses()"></label>
+    </div>
+
+    <!-- 快速記帳表單 -->
+    <div class="expense-form">
+      <strong>➕ 新增支出項目：</strong>
+      <input type="date" id="expDate" required>
+      <select id="expCategory" required>
+        <option value="booking佣金">booking佣金</option>
+        <option value="水費">水費</option>
+        <option value="電費">電費</option>
+        <option value="清潔費">清潔費</option>
+        <option value="打工薪水">打工薪水</option>
+        <option value="薪水">薪水</option>
+        <option value="網路費">網路費</option>
+        <option value="其他支出">其他支出</option>
+        <option value="房貸">房貸</option>
+      </select>
+      <input type="number" id="expAmount" placeholder="金額 (NT$)" style="width:120px;" required>
+      <input type="text" id="expNote" placeholder="說明 / 備註" style="width:180px;">
+      <button class="btn-primary" onclick="addExpense()">送出儲存</button>
+    </div>
+
+    <div class="table-container">
+      <table class="expense-list-table">
+        <thead>
+          <tr>
+            <th style="width: 120px;">支出日期</th>
+            <th style="width: 140px;">分類項目</th>
+            <th style="width: 140px;">金額</th>
+            <th>詳細備註</th>
+            <th style="width: 80px;">操作</th>
+          </tr>
+        </thead>
+        <tbody id="expenseTableBody">
+          <!-- 支出列表 -->
+        </tbody>
+        <tfoot>
+          <tr style="background:#f1f5f9; font-weight:bold;">
+            <td colspan="2">當月支出小計</td>
+            <td id="expenseMonthTotal" style="color:#b91c1c; font-size:15px;">0</td>
+            <td colspan="2"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
   </div>
 
   <script>
-    // 已帶入您的專屬 Firebase 金鑰設定
+    // ==========================================
+    // 專屬 Firebase 金鑰設定
+    // ==========================================
     const firebaseConfig = {
       apiKey: "AIzaSyANxYr_MF89rc3mocTMQBFxJ9pVuv8vU2Y",
       authDomain: "house-78fc5.firebaseapp.com",
@@ -205,18 +397,29 @@
       appId: "1:709172787551:web:dc56d7f0d4278cffbd9eea"
     };
 
-    // 初始化 Firebase 與 Firestore
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    let roomNames = ['101 房', '102 房', '201 房', '202 房', '301 房'];
-    let currentMonthData = {};
-    let unsubscribeSnapshot = null;
+    const EXP_CATEGORIES = ['booking佣金', '水費', '電費', '清潔費', '打工薪水', '薪水', '網路費', '其他支出', '房貸'];
 
+    // 狀態
+    let roomNames = ['101 房', '102 房', '201 房', '202 房', '301 房'];
+    let currentMonthBookings = {};
+    let currentMonthExpenses = [];
+    let yearRevenues = {};      // 手動輸入或累計的年度每月營收
+    let yearExpenseSummary = {}; // 年度分類累計
+    let unsubscribeBookings = null;
+    let unsubscribeExpenses = null;
+
+    // 初始化日期
     const today = new Date();
-    const currentYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-    const monthPicker = document.getElementById('monthPicker');
-    monthPicker.value = currentYearMonth;
+    const curYear = today.getFullYear();
+    const curMonthStr = `${curYear}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    
+    document.getElementById('bookingMonthPicker').value = curMonthStr;
+    document.getElementById('expenseMonthPicker').value = curMonthStr;
+    document.getElementById('expDate').value = today.toISOString().slice(0, 10);
+    document.getElementById('revenueYearPicker').value = curYear;
 
     function setSyncStatus(text, type) {
       const badge = document.getElementById('syncStatus');
@@ -224,22 +427,32 @@
       badge.className = `status-badge status-${type}`;
     }
 
-    // 監聽房間名稱設定（改房間名也會自動雲端同步）
+    // 分頁切換
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+
+      event.target.classList.add('active');
+      document.getElementById(tabId).classList.add('active');
+
+      if (tabId === 'tab-revenue') {
+        loadRevenueYearData();
+      }
+    }
+
+    // ==========================================
+    // 1. 訂房紀錄邏輯
+    // ==========================================
     function listenToRoomSettings() {
       db.collection('settings').doc('rooms').onSnapshot(doc => {
         if (doc.exists && doc.data().names) {
           roomNames = doc.data().names;
         }
-        renderRoomHeaders();
-      }, err => {
-        console.error("讀取房型失敗:", err);
+        for (let i = 1; i <= 5; i++) {
+          const el = document.getElementById(`th-room${i}`);
+          if (el) el.innerText = `${roomNames[i - 1]} ✏️`;
+        }
       });
-    }
-
-    function renderRoomHeaders() {
-      for (let i = 1; i <= 5; i++) {
-        document.getElementById(`th-room${i}`).innerText = `${roomNames[i - 1]} ✏️`;
-      }
     }
 
     function renameRoom(index) {
@@ -250,84 +463,74 @@
       }
     }
 
-    function getDaysInMonth(year, month) {
-      return new Date(year, month, 0).getDate();
-    }
+    function listenToBookings() {
+      if (unsubscribeBookings) unsubscribeBookings();
+      const monthVal = document.getElementById('bookingMonthPicker').value;
+      setSyncStatus('同步訂房中...', 'syncing');
 
-    // 即時監聽當月訂房資料（手機/電腦一有更新立刻雙向同步）
-    function listenToMonthData() {
-      if (unsubscribeSnapshot) {
-        unsubscribeSnapshot();
-      }
-
-      const selectedMonth = monthPicker.value;
-      setSyncStatus('同步中...', 'syncing');
-
-      unsubscribeSnapshot = db.collection('bookings')
-        .where('month', '==', selectedMonth)
+      unsubscribeBookings = db.collection('bookings')
+        .where('month', '==', monthVal)
         .onSnapshot(snapshot => {
-          currentMonthData = {};
+          currentMonthBookings = {};
           snapshot.forEach(doc => {
-            currentMonthData[doc.id] = doc.data();
+            currentMonthBookings[doc.id] = doc.data();
           });
-          renderTableRows();
+          renderBookingTable();
           setSyncStatus('雲端已同步', 'synced');
-        }, error => {
-          console.error("連線錯誤:", error);
-          setSyncStatus('連線異常', 'syncing');
+        }, err => {
+          console.error(err);
+          setSyncStatus('同步異常', 'syncing');
         });
     }
 
-    function renderTableRows() {
-      const [year, month] = monthPicker.value.split('-').map(Number);
-      const daysCount = getDaysInMonth(year, month);
-      const tbody = document.getElementById('tableBody');
+    function renderBookingTable() {
+      const [year, month] = document.getElementById('bookingMonthPicker').value.split('-').map(Number);
+      const daysCount = new Date(year, month, 0).getDate();
+      const tbody = document.getElementById('bookingTableBody');
       const weekNames = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
-
       const activeElId = document.activeElement ? document.activeElement.id : null;
+
       tbody.innerHTML = '';
+      let totalMonthRevenue = 0;
 
       for (let day = 1; day <= daysCount; day++) {
-        const dayString = String(day).padStart(2, '0');
-        const monthString = String(month).padStart(2, '0');
-        const dateKey = `${year}-${monthString}-${dayString}`;
-        const dateObj = new Date(year, month - 1, day);
-        const dayOfWeek = dateObj.getDay();
+        const dStr = String(day).padStart(2, '0');
+        const mStr = String(month).padStart(2, '0');
+        const dateKey = `${year}-${mStr}-${dStr}`;
+        const dayOfWeek = new Date(year, month - 1, day).getDay();
         const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+        const dayData = currentMonthBookings[dateKey] || {};
 
-        const dayData = currentMonthData[dateKey] || {};
         let rowTotal = 0;
-
         const tr = document.createElement('tr');
 
-        // 日期欄
         const tdDate = document.createElement('td');
         tdDate.className = `date-col ${isWeekend ? 'weekend' : ''}`;
         tdDate.innerHTML = `${month}月${day}日<br><small>${weekNames[dayOfWeek]}</small>`;
         tr.appendChild(tdDate);
 
-        // 5 間房
         for (let r = 1; r <= 5; r++) {
           const roomKey = `r${r}`;
           const rData = dayData[roomKey] || { info: '', price: '' };
-          const priceNum = parseFloat(rData.price) || 0;
-          rowTotal += priceNum;
+          const pVal = parseFloat(rData.price) || 0;
+          rowTotal += pVal;
 
           const tdRoom = document.createElement('td');
           tdRoom.className = 'room-col';
-          const infoInputId = `info-${dateKey}-${roomKey}`;
-          const priceInputId = `price-${dateKey}-${roomKey}`;
+          const iId = `info-${dateKey}-${roomKey}`;
+          const pId = `price-${dateKey}-${roomKey}`;
 
           tdRoom.innerHTML = `
             <div class="cell-box">
-              <textarea id="${infoInputId}" class="input-info" placeholder="客人姓名 / 電話" data-date="${dateKey}" data-room="${roomKey}" data-field="info">${rData.info || ''}</textarea>
-              <input id="${priceInputId}" type="number" class="input-price" placeholder="金額" value="${rData.price || ''}" data-date="${dateKey}" data-room="${roomKey}" data-field="price">
+              <textarea id="${iId}" class="input-info" placeholder="客名 / 備註" data-date="${dateKey}" data-room="${roomKey}" data-field="info">${rData.info || ''}</textarea>
+              <input id="${pId}" type="number" class="input-price" placeholder="金額" value="${rData.price || ''}" data-date="${dateKey}" data-room="${roomKey}" data-field="price">
             </div>
           `;
           tr.appendChild(tdRoom);
         }
 
-        // 當日合計
+        totalMonthRevenue += rowTotal;
+
         const tdTotal = document.createElement('td');
         tdTotal.className = 'total-col';
         tdTotal.id = `total-${dateKey}`;
@@ -337,80 +540,275 @@
         tbody.appendChild(tr);
       }
 
-      calcGrandTotal();
-      bindInputEvents();
+      document.getElementById('bookingGrandTotal').innerText = totalMonthRevenue.toLocaleString();
+      bindBookingInputs();
 
       if (activeElId) {
         const el = document.getElementById(activeElId);
         if (el) {
           el.focus();
-          const val = el.value;
-          el.value = '';
-          el.value = val;
+          const v = el.value; el.value = ''; el.value = v;
         }
       }
     }
 
     let saveTimeout = null;
-
-    function bindInputEvents() {
-      const inputs = document.querySelectorAll('#tableBody input, #tableBody textarea');
+    function bindBookingInputs() {
+      const inputs = document.querySelectorAll('#bookingTableBody input, #bookingTableBody textarea');
       inputs.forEach(input => {
         input.addEventListener('input', (e) => {
           const date = e.target.dataset.date;
           const room = e.target.dataset.room;
           const field = e.target.dataset.field;
           const val = e.target.value;
+          const monthPickerVal = document.getElementById('bookingMonthPicker').value;
 
-          if (!currentMonthData[date]) {
-            currentMonthData[date] = { month: monthPicker.value };
-          }
-          if (!currentMonthData[date][room]) {
-            currentMonthData[date][room] = { info: '', price: '' };
-          }
-          currentMonthData[date][room][field] = val;
+          if (!currentMonthBookings[date]) currentMonthBookings[date] = { month: monthPickerVal };
+          if (!currentMonthBookings[date][room]) currentMonthBookings[date][room] = { info: '', price: '' };
+          currentMonthBookings[date][room][field] = val;
 
-          if (field === 'price') {
-            updateRowTotal(date);
-            calcGrandTotal();
+          // 更新日總計
+          let rowSum = 0;
+          for (let r = 1; r <= 5; r++) {
+            rowSum += parseFloat(currentMonthBookings[date][`r${r}`]?.price) || 0;
           }
+          const tCell = document.getElementById(`total-${date}`);
+          if (tCell) tCell.innerText = rowSum > 0 ? rowSum.toLocaleString() : '0';
+
+          // 更新全月合計
+          let grand = 0;
+          document.querySelectorAll('.total-col').forEach(c => grand += parseFloat(c.innerText.replace(/,/g, '')) || 0);
+          document.getElementById('bookingGrandTotal').innerText = grand.toLocaleString();
 
           setSyncStatus('儲存中...', 'syncing');
           clearTimeout(saveTimeout);
           saveTimeout = setTimeout(() => {
             db.collection('bookings').doc(date).set({
-              month: monthPicker.value,
-              [room]: currentMonthData[date][room]
-            }, { merge: true }).then(() => {
-              setSyncStatus('雲端已同步', 'synced');
-            }).catch(err => {
-              console.error("存檔失敗:", err);
-              setSyncStatus('存檔失敗', 'syncing');
-            });
+              month: monthPickerVal,
+              [room]: currentMonthBookings[date][room]
+            }, { merge: true }).then(() => setSyncStatus('雲端已同步', 'synced'));
           }, 500);
         });
       });
     }
 
-    function updateRowTotal(dateKey) {
-      const dayData = currentMonthData[dateKey] || {};
-      let sum = 0;
-      for (let r = 1; r <= 5; r++) {
-        sum += parseFloat(dayData[`r${r}`]?.price) || 0;
+    // ==========================================
+    // 2. 每月支出明細邏輯
+    // ==========================================
+    function listenToMonthExpenses() {
+      if (unsubscribeExpenses) unsubscribeExpenses();
+      const monthVal = document.getElementById('expenseMonthPicker').value;
+      setSyncStatus('載入支出明細...', 'syncing');
+
+      unsubscribeExpenses = db.collection('expenses')
+        .where('month', '==', monthVal)
+        .orderBy('date', 'desc')
+        .onSnapshot(snapshot => {
+          currentMonthExpenses = [];
+          snapshot.forEach(doc => {
+            currentMonthExpenses.push({ id: doc.id, ...doc.data() });
+          });
+          renderExpenseTable();
+          setSyncStatus('雲端已同步', 'synced');
+        }, err => {
+          console.error(err);
+          setSyncStatus('載入支出失敗', 'syncing');
+        });
+    }
+
+    function renderExpenseTable() {
+      const tbody = document.getElementById('expenseTableBody');
+      tbody.innerHTML = '';
+      let monthTotal = 0;
+
+      if (currentMonthExpenses.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="color:#94a3b8; padding:18px;">本月份尚無任何支出項目，請於上方新增。</td></tr>`;
+      } else {
+        currentMonthExpenses.forEach(item => {
+          const amt = parseFloat(item.amount) || 0;
+          monthTotal += amt;
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${item.date}</td>
+            <td><span style="font-weight:600; color:#1e293b;">${item.category}</span></td>
+            <td style="text-align:right; font-weight:600; color:#b91c1c;">${amt.toLocaleString()}</td>
+            <td style="text-align:left; color:#475569;">${item.note || '-'}</td>
+            <td><button class="btn-delete" onclick="deleteExpense('${item.id}')">刪除</button></td>
+          `;
+          tbody.appendChild(tr);
+        });
       }
-      const totalCell = document.getElementById(`total-${dateKey}`);
-      if (totalCell) {
-        totalCell.innerText = sum > 0 ? sum.toLocaleString() : '0';
+
+      document.getElementById('expenseMonthTotal').innerText = monthTotal.toLocaleString();
+    }
+
+    function addExpense() {
+      const date = document.getElementById('expDate').value;
+      const category = document.getElementById('expCategory').value;
+      const amount = parseFloat(document.getElementById('expAmount').value);
+      const note = document.getElementById('expNote').value.trim();
+
+      if (!date || isNaN(amount) || amount <= 0) {
+        alert('請填寫正確的日期與支出金額！');
+        return;
+      }
+
+      const month = date.slice(0, 7); // yyyy-MM
+      setSyncStatus('儲存支出...', 'syncing');
+
+      db.collection('expenses').add({
+        date,
+        month,
+        category,
+        amount,
+        note,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).then(() => {
+        document.getElementById('expAmount').value = '';
+        document.getElementById('expNote').value = '';
+        setSyncStatus('雲端已同步', 'synced');
+      }).catch(err => {
+        alert('新增失敗: ' + err.message);
+      });
+    }
+
+    function deleteExpense(id) {
+      if (confirm('確定要刪除這筆支出紀錄嗎？')) {
+        db.collection('expenses').doc(id).delete();
       }
     }
 
-    function calcGrandTotal() {
-      const totals = document.querySelectorAll('.total-col');
-      let grand = 0;
-      totals.forEach(t => {
-        grand += parseFloat(t.innerText.replace(/,/g, '')) || 0;
+    // ==========================================
+    // 3. 營收紀錄 (年度總表) 自動計算與同步
+    // ==========================================
+    async function loadRevenueYearData() {
+      const year = document.getElementById('revenueYearPicker').value;
+      document.getElementById('revYearHeader').innerText = year;
+      setSyncStatus(`彙整 ${year} 營收與支出...`, 'syncing');
+
+      // 1. 抓取支出資料計算各月分類累計
+      const expSnapshot = await db.collection('expenses')
+        .where('date', '>=', `${year}-01-01`)
+        .where('date', '<=', `${year}-12-31`)
+        .get();
+
+      yearExpenseSummary = {};
+      for (let m = 1; m <= 12; m++) {
+        yearExpenseSummary[m] = {};
+        EXP_CATEGORIES.forEach(cat => yearExpenseSummary[m][cat] = 0);
+      }
+
+      expSnapshot.forEach(doc => {
+        const item = doc.data();
+        const m = parseInt(item.date.split('-')[1], 10);
+        if (yearExpenseSummary[m] && yearExpenseSummary[m][item.category] !== undefined) {
+          yearExpenseSummary[m][item.category] += (parseFloat(item.amount) || 0);
+        }
       });
-      document.getElementById('grandTotal').innerText = grand.toLocaleString();
+
+      // 2. 抓取手動/保存的每月營收總額
+      const revDoc = await db.collection('annual_revenue').doc(year).get();
+      yearRevenues = revDoc.exists ? revDoc.data() : {};
+
+      renderRevenueTable(year);
+      setSyncStatus('雲端已同步', 'synced');
+    }
+
+    function renderRevenueTable(year) {
+      const tbody = document.getElementById('revenueTableBody');
+      tbody.innerHTML = '';
+
+      let colTotals = {
+        revenue: 0,
+        totalExp: 0,
+        surplus: 0
+      };
+      EXP_CATEGORIES.forEach(cat => colTotals[cat] = 0);
+
+      for (let m = 1; m <= 12; m++) {
+        const tr = document.createElement('tr');
+
+        // 月份綠底標籤
+        const tdMonth = document.createElement('td');
+        tdMonth.innerHTML = `<div class="month-badge">${m}月</div>`;
+        tr.appendChild(tdMonth);
+
+        // 營收欄位 (可直接編輯修改，失焦時自動存檔)
+        const curRev = yearRevenues[`m${m}`] !== undefined ? yearRevenues[`m${m}`] : '';
+        const revVal = parseFloat(curRev) || 0;
+        colTotals.revenue += revVal;
+
+        const tdRev = document.createElement('td');
+        tdRev.innerHTML = `
+          <input type="number" style="width:90px; text-align:right; font-weight:600;" 
+                 value="${curRev}" placeholder="0" 
+                 onchange="saveMonthRevenue('${year}', ${m}, this.value)">
+        `;
+        tr.appendChild(tdRev);
+
+        // 各支出欄位
+        let monthTotalExp = 0;
+        EXP_CATEGORIES.forEach(cat => {
+          const val = yearExpenseSummary[m][cat] || 0;
+          monthTotalExp += val;
+          colTotals[cat] += val;
+
+          const tdCat = document.createElement('td');
+          tdCat.style.textAlign = 'right';
+          tdCat.innerText = val > 0 ? val.toLocaleString() : '';
+          tr.appendChild(tdCat);
+        });
+
+        // 總支出
+        colTotals.totalExp += monthTotalExp;
+        const tdExp = document.createElement('td');
+        tdExp.style.textAlign = 'right';
+        tdExp.style.fontWeight = '600';
+        tdExp.innerText = monthTotalExp > 0 ? monthTotalExp.toLocaleString() : '0';
+        tr.appendChild(tdExp);
+
+        // 結餘 = 營收 - 總支出
+        const surplus = revVal - monthTotalExp;
+        colTotals.surplus += surplus;
+        const tdSurplus = document.createElement('td');
+        tdSurplus.className = `cell-surplus ${surplus < 0 ? 'negative' : ''}`;
+        tdSurplus.style.textAlign = 'right';
+        tdSurplus.innerText = (revVal > 0 || monthTotalExp > 0) ? surplus.toLocaleString() : '0';
+        tr.appendChild(tdSurplus);
+
+        tbody.appendChild(tr);
+      }
+
+      // 底端總計
+      const summaryRow = document.getElementById('revenueSummaryRow');
+      let summaryHtml = `
+        <td style="background:#e2e8f0;">總計</td>
+        <td style="text-align:right; font-size:15px;">${colTotals.revenue.toLocaleString()}</td>
+      `;
+
+      EXP_CATEGORIES.forEach(cat => {
+        summaryHtml += `<td style="text-align:right; color:#b91c1c;">${colTotals[cat] > 0 ? colTotals[cat].toLocaleString() : '0'}</td>`;
+      });
+
+      summaryHtml += `
+        <td style="text-align:right; color:#b91c1c; font-size:15px;">${colTotals.totalExp.toLocaleString()}</td>
+        <td style="text-align:right; color:${colTotals.surplus < 0 ? '#dc2626' : '#1e3a8a'}; font-size:15px;">${colTotals.surplus.toLocaleString()}</td>
+      `;
+      summaryRow.innerHTML = summaryHtml;
+    }
+
+    function saveMonthRevenue(year, month, value) {
+      const numVal = parseFloat(value) || 0;
+      if (!yearRevenues) yearRevenues = {};
+      yearRevenues[`m${month}`] = numVal;
+
+      setSyncStatus('儲存營收中...', 'syncing');
+      db.collection('annual_revenue').doc(year).set({
+        [`m${month}`]: numVal
+      }, { merge: true }).then(() => {
+        setSyncStatus('雲端已同步', 'synced');
+        renderRevenueTable(year);
+      });
     }
 
     function exportData() {
@@ -421,16 +819,18 @@
         const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = `民宿資料備份_${new Date().toISOString().slice(0,10)}.json`;
+        a.download = `民宿備份_${new Date().toISOString().slice(0,10)}.json`;
         a.click();
       });
     }
 
-    monthPicker.addEventListener('change', listenToMonthData);
+    // 事件監聽
+    document.getElementById('bookingMonthPicker').addEventListener('change', listenToBookings);
 
-    // 啟動監聽
+    // 初始載入
     listenToRoomSettings();
-    listenToMonthData();
+    listenToBookings();
+    listenToMonthExpenses();
   </script>
 </body>
 </html>
