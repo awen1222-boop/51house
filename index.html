@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=0.1, maximum-scale=5.0, user-scalable=yes">
-  <title>51民宿預約與財務管理系統 V.260917.11</title>
+  <title>51民宿預約與財務管理系統 V.260917.12</title>
   
   <!-- 載入 Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
@@ -106,7 +106,7 @@
     button.btn-primary { background: var(--accent-color); color: white; border: none; font-weight: 600; }
     button.btn-primary:hover { background: #1d4ed8; }
 
-    /* 全局累計資訊吧 (放在表格上方) */
+    /* 頂部全局累計資訊吧 */
     .summary-banner {
       background: white;
       border: 1px solid var(--border-color);
@@ -119,27 +119,9 @@
       flex-wrap: wrap;
       box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
-    .summary-banner-title {
-      font-weight: bold;
-      color: #1e293b;
-      font-size: 14.5px;
-      margin-right: 4px;
-    }
-    .summary-grid {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      font-size: 13.5px;
-      font-weight: 600;
-      flex-wrap: wrap;
-    }
-    .summary-item {
-      padding: 4px 8px;
-      border-radius: 4px;
-      background: #f1f5f9;
-      border: 1px solid #e2e8f0;
-      white-space: nowrap;
-    }
+    .summary-banner-title { font-weight: bold; color: #1e293b; font-size: 14.5px; margin-right: 4px; }
+    .summary-grid { display: flex; gap: 10px; align-items: center; font-size: 13.5px; font-weight: 600; flex-wrap: wrap; }
+    .summary-item { padding: 4px 8px; border-radius: 4px; background: #f1f5f9; border: 1px solid #e2e8f0; white-space: nowrap; }
 
     /* 表格容器 */
     .table-container {
@@ -210,7 +192,7 @@
     .price-row { display: flex; gap: 4px; flex-wrap: nowrap; }
     .input-price { flex: 1; width: 50%; border: 1px solid #e2e8f0; border-radius: 3px; padding: 4px; font-size: 13px; text-align: right; box-sizing: border-box; background-color: #ffffff; font-weight: 600; }
     
-    /* 收款人選單顏色標記 */
+    /* 收款人選單顏色標記 (阿文改為淡紅色) */
     .select-payee { 
       width: 72px; 
       padding: 3px; 
@@ -221,11 +203,18 @@
       transition: all 0.2s;
     }
     .payee-unpaid { background-color: #ffffff !important; color: #475569; }
-    .payee-awen { background-color: #dbeafe !important; color: #1d4ed8; border-color: #93c5fd; }
+    .payee-awen { background-color: #fee2e2 !important; color: #b91c1c; border-color: #fca5a5; } /* 改為淡紅色 */
     .payee-rong { background-color: #f3e8ff !important; color: #6d28d9; border-color: #d8b4fe; }
     .payee-mom { background-color: #fef3c7 !important; color: #b45309; border-color: #fcd34d; }
 
-    .total-col { width: 90px; min-width: 90px; font-weight: bold; color: #b91c1c; background-color: #fff1f2; }
+    .total-col { width: 80px; min-width: 80px; font-weight: bold; color: #b91c1c; background-color: #fff1f2; }
+    .action-col { width: 60px; min-width: 60px; background-color: #f8fafc; }
+
+    /* 關房按鈕 */
+    .btn-close-room {
+      background: #475569; color: white; border: none; padding: 5px 8px; font-size: 12px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+    }
+    .btn-close-room:hover { background: #334155; }
 
     /* 營收表特定樣式 */
     .revenue-table th { background-color: #dbeafe !important; white-space: nowrap; }
@@ -237,7 +226,7 @@
     .cell-surplus { font-weight: bold; color: #1e3a8a; }
     .cell-surplus.negative { color: #dc2626; }
 
-    /* 按鈕樣式 */
+    /* 其他按鈕樣式 */
     .btn-delete { color: #dc2626; border: 1px solid #fca5a5; background: #fef2f2; padding: 4px 8px; font-size: 12px; border-radius: 3px; }
     .btn-copy { color: #0284c7; border: 1px solid #bae6fd; background: #f0f9ff; padding: 4px 8px; font-size: 12px; border-radius: 3px; }
 
@@ -259,7 +248,7 @@
   <div class="top-bar">
     <div class="title">
       🏡 51民宿預約與財務管理系統
-      <span class="version-badge">V.260917.11</span>
+      <span class="version-badge">V.260917.12</span>
       <span id="syncStatus" class="status-badge">連線中...</span>
     </div>
   </div>
@@ -279,11 +268,11 @@
       <button onclick="exportToExcel()">📊 匯出 Excel 報表</button>
     </div>
 
-    <!-- 收款人累計 (移至表格上方) -->
+    <!-- 收款人累計 (表格上方) -->
     <div class="summary-banner">
       <span class="summary-banner-title">💰 本月收款統計：</span>
       <div class="summary-grid">
-        <span class="summary-item" style="color:#2563eb;">阿文：<span id="sumAwen">0</span> 元</span>
+        <span class="summary-item" style="color:#b91c1c;">阿文：<span id="sumAwen">0</span> 元</span>
         <span class="summary-item" style="color:#7c3aed;">榕珍：<span id="sumRong">0</span> 元</span>
         <span class="summary-item" style="color:#d97706;">媽媽：<span id="sumMom">0</span> 元</span>
         <span class="summary-item" style="color:#64748b;">未收款：<span id="sumUnpaid">0</span> 元</span>
@@ -301,6 +290,7 @@
             <th id="th-room4" onclick="renameRoom(4)" class="room-quad-th" style="cursor:pointer; color:#1e40af;">301 四人房 ✏️</th>
             <th id="th-room5" onclick="renameRoom(5)" class="room-quad-th" style="cursor:pointer; color:#1e40af;">401 四人房 ✏️</th>
             <th class="total-col">當日總計</th>
+            <th class="action-col">操作</th>
           </tr>
         </thead>
         <tbody id="bookingTableBody"></tbody>
@@ -309,6 +299,7 @@
             <td class="freeze-left" style="background:#e2e8f0;">全月總營收</td>
             <td colspan="5"></td>
             <td id="bookingGrandTotal" style="color:#b91c1c; font-size:16px;">0</td>
+            <td></td>
           </tr>
         </tfoot>
       </table>
@@ -414,7 +405,7 @@
             <td style="font-weight:bold; background:#f8fafc;">代墊累計</td>
             <td colspan="5" style="text-align: left;">
               <div class="summary-grid">
-                <span class="summary-item" style="color:#2563eb;">阿文代墊：<span id="expSumAwen">0</span> 元</span>
+                <span class="summary-item" style="color:#b91c1c;">阿文代墊：<span id="expSumAwen">0</span> 元</span>
                 <span class="summary-item" style="color:#d97706;">媽媽代墊：<span id="expSumMom">0</span> 元</span>
                 <span class="summary-item" style="color:#7c3aed;">榕珍代墊：<span id="expSumRong">0</span> 元</span>
               </div>
@@ -454,17 +445,17 @@
 
   <script>
     // ==========================================
-    // 國定假日清單 (完整涵蓋 2025、2026、2027)
+    // 國定假日清單
     // ==========================================
     const TAIWAN_HOLIDAYS = {
       // 2025
-      "2025-01-01": "元旦", "2025-01-27": "春節調整放假", "2025-01-28": "除夕", "2025-01-29": "春節", "2025-01-30": "初二", "2025-01-31": "初三",
-      "2025-02-28": "和平紀念日", "2025-04-03": "兒童節補假", "2025-04-04": "兒童清明節", "2025-05-01": "勞動節",
-      "2025-05-30": "端午補假", "2025-05-31": "端午節", "2025-10-06": "中秋節補假", "2025-10-10": "國慶日",
+      "2025-01-01": "元旦", "2025-01-27": "春節調整", "2025-01-28": "除夕", "2025-01-29": "春節", "2025-01-30": "初二", "2025-01-31": "初三",
+      "2025-02-28": "和平紀念日", "2025-04-03": "兒童節補假", "2025-04-04": "兒童清明", "2025-05-01": "勞動節",
+      "2025-05-30": "端午補假", "2025-05-31": "端午節", "2025-10-06": "中秋補假", "2025-10-10": "國慶日",
 
       // 2026
       "2026-01-01": "元旦", "2026-01-02": "元旦連假",
-      "2026-02-16": "除夕", "2026-02-17": "春節初一", "2026-02-18": "春節初二", "2026-02-19": "春節初三", "2026-02-20": "春節初四", "2026-02-23": "春節補假",
+      "2026-02-16": "除夕", "2026-02-17": "初一", "2026-02-18": "初二", "2026-02-19": "初三", "2026-02-20": "初四", "2026-02-23": "春節補假",
       "2026-02-27": "和平補假", "2026-02-28": "和平紀念日", 
       "2026-04-03": "兒童節", "2026-04-04": "清明節", "2026-04-06": "清明補假",
       "2026-05-01": "勞動節", "2026-06-19": "端午節", "2026-09-25": "中秋節", "2026-10-09": "國慶連假", "2026-10-10": "國慶日",
@@ -528,9 +519,6 @@
       if (tabId === 'tab-accounts') listenToAccounts();
     }
 
-    // ==========================================
-    // ResizeObserver: 用於同步同列的高度
-    // ==========================================
     const textareaObserver = new ResizeObserver(entries => {
       for (const entry of entries) {
         const target = entry.target;
@@ -560,7 +548,7 @@
     }
 
     // ==========================================
-    // 1. 訂房紀錄邏輯
+    // 1. 訂房紀錄邏輯 & 關房功能
     // ==========================================
     function listenToRoomSettings() {
       db.collection('settings').doc('rooms').onSnapshot(doc => {
@@ -621,6 +609,7 @@
         let rowTotal = 0;
         const tr = document.createElement('tr');
 
+        // 日期欄
         const tdDate = document.createElement('td');
         let dateClass = 'date-col freeze-left';
         if (holidayName) dateClass += ' holiday';
@@ -632,6 +621,7 @@
         tdDate.innerHTML = dateHtml;
         tr.appendChild(tdDate);
 
+        // 房型
         for (let r = 1; r <= 5; r++) {
           const roomKey = `r${r}`;
           const rData = dayData[roomKey] || { info: '', phone: '', price: '', payee: '未收款' };
@@ -677,13 +667,19 @@
           tr.appendChild(tdRoom);
         }
 
+        // 當日總計
         totalMonthRevenue += rowTotal;
-
         const tdTotal = document.createElement('td');
         tdTotal.className = 'total-col';
         tdTotal.id = `total-${dateKey}`;
         tdTotal.innerText = rowTotal > 0 ? rowTotal.toLocaleString() : '0';
         tr.appendChild(tdTotal);
+
+        // 新增：關房按鈕
+        const tdAction = document.createElement('td');
+        tdAction.className = 'action-col';
+        tdAction.innerHTML = `<button class="btn-close-room" onclick="closeEmptyRooms('${dateKey}')">關房</button>`;
+        tr.appendChild(tdAction);
 
         tbody.appendChild(tr);
       }
@@ -703,6 +699,39 @@
       if (activeElId) {
         const el = document.getElementById(activeElId);
         if (el) { el.focus(); const v = el.value; el.value = ''; el.value = v; }
+      }
+    }
+
+    // 關閉當天剩餘空房
+    function closeEmptyRooms(dateKey) {
+      if (!confirm(`確定要將 ${dateKey} 所有的空房設定為「關房中」嗎？\n(已填寫名字的房間將不會被覆蓋)`)) return;
+      
+      const monthPickerVal = document.getElementById('bookingMonthPicker').value;
+      if (!currentMonthBookings[dateKey]) currentMonthBookings[dateKey] = { month: monthPickerVal };
+      
+      let hasChanges = false;
+      const dataToSave = { month: monthPickerVal };
+
+      for (let r = 1; r <= 5; r++) {
+        const roomKey = `r${r}`;
+        const rData = currentMonthBookings[dateKey][roomKey] || { info: '', phone: '', price: '', payee: '未收款' };
+        
+        // 若客名空白或只有空格，則自動填入「關房中」
+        if ((rData.info || '').trim() === '') {
+          rData.info = '關房中';
+          hasChanges = true;
+        }
+        dataToSave[roomKey] = rData;
+      }
+
+      if (hasChanges) {
+        setSyncStatus('關房儲存中...', 'syncing');
+        db.collection('bookings').doc(dateKey).set(dataToSave, { merge: true })
+          .then(() => setSyncStatus('雲端已同步', 'synced'))
+          .catch(err => {
+            console.error(err);
+            alert('關房失敗: ' + err.message);
+          });
       }
     }
 
