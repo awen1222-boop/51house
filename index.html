@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=0.1, maximum-scale=5.0, user-scalable=yes">
-  <title>51民宿預約與財務管理系統 V.260917.09</title>
+  <title>51民宿預約與財務管理系統 V.260917.10</title>
   
   <!-- 載入 Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
@@ -106,6 +106,41 @@
     button.btn-primary { background: var(--accent-color); color: white; border: none; font-weight: 600; }
     button.btn-primary:hover { background: #1d4ed8; }
 
+    /* 全局累計資訊吧 (放在表格上方) */
+    .summary-banner {
+      background: white;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .summary-banner-title {
+      font-weight: bold;
+      color: #1e293b;
+      font-size: 14.5px;
+      margin-right: 4px;
+    }
+    .summary-grid {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      font-size: 13.5px;
+      font-weight: 600;
+      flex-wrap: wrap;
+    }
+    .summary-item {
+      padding: 4px 8px;
+      border-radius: 4px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      white-space: nowrap;
+    }
+
     /* 表格容器 */
     .table-container {
       background: white;
@@ -161,10 +196,10 @@
     .room-quad-th { background-color: #ffedd5 !important; } 
     .room-quad-td { background-color: #fff7ed !important; } 
 
-    /* 有客名文字時的紅色粗外框 (防止跑版使用 inset box-shadow) */
+    /* 有客名文字時的紅色粗外框 */
     .booked-cell {
       box-shadow: inset 0 0 0 2px #ef4444 !important;
-      background-color: #fff1f2 !important; /* 微微粉底加強辨識 */
+      background-color: #fff1f2 !important; 
     }
 
     .cell-box { display: flex; flex-direction: column; gap: 3px; }
@@ -207,8 +242,6 @@
     .btn-copy { color: #0284c7; border: 1px solid #bae6fd; background: #f0f9ff; padding: 4px 8px; font-size: 12px; border-radius: 3px; }
 
     .common-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; background: white; padding: 12px 16px; border-radius: 6px; border: 1px solid var(--border-color); margin-bottom: 15px; }
-    .summary-grid { display: flex; gap: 10px; justify-content: flex-end; align-items: center; font-size: 13.5px; font-weight: 600; flex-wrap: wrap; }
-    .summary-item { padding: 4px 8px; border-radius: 4px; background: #f1f5f9; border: 1px solid #e2e8f0; white-space: nowrap; }
 
     /* 手機版 RWD 優化 */
     @media (max-width: 650px) {
@@ -216,7 +249,7 @@
       .common-form strong { margin-bottom: 4px; }
       .common-form input, .common-form select, .common-form button { width: 100% !important; font-size: 16px; }
       .controls { flex-direction: column; align-items: stretch; }
-      .summary-grid { justify-content: flex-start; }
+      .summary-banner { flex-direction: column; align-items: flex-start; gap: 8px; }
     }
   </style>
 </head>
@@ -226,7 +259,7 @@
   <div class="top-bar">
     <div class="title">
       🏡 51民宿預約與財務管理系統
-      <span class="version-badge">V.260917.09</span>
+      <span class="version-badge">V.260917.10</span>
       <span id="syncStatus" class="status-badge">連線中...</span>
     </div>
   </div>
@@ -244,7 +277,18 @@
     <div class="controls">
       <label>切換月份：<input type="month" id="bookingMonthPicker" style="width:140px;"></label>
       <button onclick="exportToExcel()">📊 匯出 Excel 報表</button>
-      <span style="font-size: 12px; color: #64748b;">💡 只要客名欄有打字，整格會自動框紅線，手機縮小查房更直覺</span>
+      <span style="font-size: 12px; color: #64748b;">💡 客名欄有字整格會變紅框，方便手機檢視。</span>
+    </div>
+
+    <!-- 將收款人累計搬移到這裡 (表格上方) -->
+    <div class="summary-banner">
+      <span class="summary-banner-title">💰 本月收款統計：</span>
+      <div class="summary-grid">
+        <span class="summary-item" style="color:#2563eb;">阿文：<span id="sumAwen">0</span> 元</span>
+        <span class="summary-item" style="color:#7c3aed;">榕珍：<span id="sumRong">0</span> 元</span>
+        <span class="summary-item" style="color:#d97706;">媽媽：<span id="sumMom">0</span> 元</span>
+        <span class="summary-item" style="color:#64748b;">未收款：<span id="sumUnpaid">0</span> 元</span>
+      </div>
     </div>
 
     <div class="table-container">
@@ -263,20 +307,9 @@
         <tbody id="bookingTableBody"></tbody>
         <tfoot>
           <tr style="background:#f1f5f9; font-weight:bold;">
-            <td class="freeze-left" style="background:#e2e8f0;">全月累計</td>
+            <td class="freeze-left" style="background:#e2e8f0;">全月總營收</td>
             <td colspan="5"></td>
             <td id="bookingGrandTotal" style="color:#b91c1c; font-size:16px;">0</td>
-          </tr>
-          <tr style="background:#ffffff;">
-            <td class="freeze-left" style="font-weight:bold; background:#f1f5f9;">收款人累計</td>
-            <td colspan="6" style="text-align: left;">
-              <div class="summary-grid">
-                <span class="summary-item" style="color:#2563eb;">阿文：<span id="sumAwen">0</span> 元</span>
-                <span class="summary-item" style="color:#7c3aed;">榕珍：<span id="sumRong">0</span> 元</span>
-                <span class="summary-item" style="color:#d97706;">媽媽：<span id="sumMom">0</span> 元</span>
-                <span class="summary-item" style="color:#64748b;">未收款：<span id="sumUnpaid">0</span> 元</span>
-              </div>
-            </td>
           </tr>
         </tfoot>
       </table>
@@ -509,7 +542,6 @@
       }
     });
 
-    // 取得收款人對應的 class
     function getPayeeClass(payeeName) {
       if (payeeName === '阿文') return 'payee-awen';
       if (payeeName === '榕珍') return 'payee-rong';
@@ -607,7 +639,6 @@
 
           const tdRoom = document.createElement('td');
           
-          // 判定是否有客名，若有則加上 booked-cell 給予紅框
           let roomClass = r <= 2 ? 'room-col room-double-td' : 'room-col room-quad-td';
           if ((rData.info || '').trim().length > 0) {
             roomClass += ' booked-cell';
@@ -679,13 +710,11 @@
           const val = e.target.value;
           const monthPickerVal = document.getElementById('bookingMonthPicker').value;
 
-          // 即時改變下拉選單顏色
           if (field === 'payee') {
             e.target.classList.remove('payee-unpaid', 'payee-awen', 'payee-rong', 'payee-mom');
             e.target.classList.add(getPayeeClass(val));
           }
 
-          // 客名有字即時變紅框
           if (field === 'info') {
             const td = e.target.closest('td');
             if (val.trim().length > 0) td.classList.add('booked-cell');
@@ -762,13 +791,11 @@
       document.getElementById('revYearHeader').innerText = year;
       setSyncStatus(`彙整 ${year} 數據...`, 'syncing');
 
-      // 抓取全年度的支出紀錄
       const expSnapshot = await db.collection('expenses')
         .where('date', '>=', `${year}-01-01`)
         .where('date', '<=', `${year}-12-31`)
         .get();
 
-      // 累加總數，放入「其他支出」
       const expenseMonthlyTotals = {};
       for (let m = 1; m <= 12; m++) expenseMonthlyTotals[m] = 0;
 
@@ -818,13 +845,11 @@
           let curVal = '';
           const manualSaved = annualData[`m${m}_${cat}`];
 
-          // 「其他支出」自動從支出明細表累計
           if (cat === '其他支出') {
             const dynamicExp = expenseMonthlyTotals[m] || 0;
             if (dynamicExp > 0) curVal = dynamicExp;
             else if (manualSaved !== undefined) curVal = manualSaved;
           } 
-          // 房貸與網路費預設值
           else {
             if (manualSaved !== undefined) {
               curVal = manualSaved;
