@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=0.1, maximum-scale=5.0, user-scalable=yes">
-  <title>51民宿預約與財務管理系統 V.260917.07</title>
+  <title>51民宿預約與財務管理系統 V.260917.09</title>
   
   <!-- 載入 Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
@@ -155,14 +155,23 @@
     .holiday-tag { display: inline-block; font-size: 11px; color: #b91c1c; font-weight: bold; background: #fecaca; padding: 1px 4px; border-radius: 4px; margin-top: 2px; }
 
     /* 房型顏色區分設計 */
-    .room-col { min-width: 140px; vertical-align: top; }
+    .room-col { min-width: 140px; vertical-align: top; position: relative; transition: all 0.2s; }
     .room-double-th { background-color: #e0f2fe !important; } 
     .room-double-td { background-color: #f0f9ff !important; } 
     .room-quad-th { background-color: #ffedd5 !important; } 
     .room-quad-td { background-color: #fff7ed !important; } 
 
+    /* 有客名文字時的紅色粗外框 (防止跑版使用 inset box-shadow) */
+    .booked-cell {
+      box-shadow: inset 0 0 0 2px #ef4444 !important;
+      background-color: #fff1f2 !important; /* 微微粉底加強辨識 */
+    }
+
     .cell-box { display: flex; flex-direction: column; gap: 3px; }
     .input-info { width: 100%; border: 1px solid #e2e8f0; border-radius: 3px; padding: 4px 6px; font-size: 13px; box-sizing: border-box; resize: vertical; min-height: 44px; line-height: 1.3; }
+    .input-phone { width: 100%; border: 1px solid #e2e8f0; border-radius: 3px; padding: 4px 6px; font-size: 13px; box-sizing: border-box; background-color: #ffffff; }
+    .input-phone:focus, .input-info:focus { border-color: #2563eb; outline: none; }
+    
     .price-row { display: flex; gap: 4px; flex-wrap: nowrap; }
     .input-price { flex: 1; width: 50%; border: 1px solid #e2e8f0; border-radius: 3px; padding: 4px; font-size: 13px; text-align: right; box-sizing: border-box; background-color: #ffffff; font-weight: 600; }
     
@@ -201,7 +210,7 @@
     .summary-grid { display: flex; gap: 10px; justify-content: flex-end; align-items: center; font-size: 13.5px; font-weight: 600; flex-wrap: wrap; }
     .summary-item { padding: 4px 8px; border-radius: 4px; background: #f1f5f9; border: 1px solid #e2e8f0; white-space: nowrap; }
 
-    /* 手機版 (Mobile) 深度 RWD 優化 */
+    /* 手機版 RWD 優化 */
     @media (max-width: 650px) {
       .common-form { flex-direction: column; align-items: stretch; }
       .common-form strong { margin-bottom: 4px; }
@@ -217,7 +226,7 @@
   <div class="top-bar">
     <div class="title">
       🏡 51民宿預約與財務管理系統
-      <span class="version-badge">V.260917.07</span>
+      <span class="version-badge">V.260917.09</span>
       <span id="syncStatus" class="status-badge">連線中...</span>
     </div>
   </div>
@@ -235,7 +244,7 @@
     <div class="controls">
       <label>切換月份：<input type="month" id="bookingMonthPicker" style="width:140px;"></label>
       <button onclick="exportToExcel()">📊 匯出 Excel 報表</button>
-      <span style="font-size: 12px; color: #64748b;">💡 收款人選單會依照人員顯示不同顏色</span>
+      <span style="font-size: 12px; color: #64748b;">💡 只要客名欄有打字，整格會自動框紅線，手機縮小查房更直覺</span>
     </div>
 
     <div class="table-container">
@@ -570,6 +579,7 @@
         let rowTotal = 0;
         const tr = document.createElement('tr');
 
+        // 日期欄
         const tdDate = document.createElement('td');
         let dateClass = 'date-col freeze-left';
         if (holidayName) dateClass += ' holiday';
@@ -584,7 +594,7 @@
         // 房型
         for (let r = 1; r <= 5; r++) {
           const roomKey = `r${r}`;
-          const rData = dayData[roomKey] || { info: '', price: '', payee: '未收款' };
+          const rData = dayData[roomKey] || { info: '', phone: '', price: '', payee: '未收款' };
           const pVal = parseFloat(rData.price) || 0;
           const currentPayee = rData.payee || '未收款';
           const currentPayeeClass = getPayeeClass(currentPayee);
@@ -596,15 +606,24 @@
           }
 
           const tdRoom = document.createElement('td');
-          tdRoom.className = r <= 2 ? 'room-col room-double-td' : 'room-col room-quad-td';
+          
+          // 判定是否有客名，若有則加上 booked-cell 給予紅框
+          let roomClass = r <= 2 ? 'room-col room-double-td' : 'room-col room-quad-td';
+          if ((rData.info || '').trim().length > 0) {
+            roomClass += ' booked-cell';
+          }
+          tdRoom.className = roomClass;
+
           const iId = `info-${dateKey}-${roomKey}`;
+          const phId = `phone-${dateKey}-${roomKey}`;
           const pId = `price-${dateKey}-${roomKey}`;
           
           const savedHeight = customRowHeights[dateKey] ? `height: ${customRowHeights[dateKey]};` : '';
 
           tdRoom.innerHTML = `
             <div class="cell-box">
-              <textarea id="${iId}" class="input-info" style="${savedHeight}" placeholder="客名/備註" data-date="${dateKey}" data-room="${roomKey}" data-field="info">${rData.info || ''}</textarea>
+              <textarea id="${iId}" class="input-info" style="${savedHeight}" placeholder="客名 / 備註" data-date="${dateKey}" data-room="${roomKey}" data-field="info">${rData.info || ''}</textarea>
+              <input id="${phId}" type="text" class="input-phone" placeholder="電話號碼" value="${rData.phone || ''}" data-date="${dateKey}" data-room="${roomKey}" data-field="phone">
               <div class="price-row">
                 <input id="${pId}" type="number" class="input-price" placeholder="金額" value="${rData.price || ''}" data-date="${dateKey}" data-room="${roomKey}" data-field="price">
                 <select class="select-payee ${currentPayeeClass}" data-date="${dateKey}" data-room="${roomKey}" data-field="payee">
@@ -666,8 +685,15 @@
             e.target.classList.add(getPayeeClass(val));
           }
 
+          // 客名有字即時變紅框
+          if (field === 'info') {
+            const td = e.target.closest('td');
+            if (val.trim().length > 0) td.classList.add('booked-cell');
+            else td.classList.remove('booked-cell');
+          }
+
           if (!currentMonthBookings[date]) currentMonthBookings[date] = { month: monthPickerVal };
-          if (!currentMonthBookings[date][room]) currentMonthBookings[date][room] = { info: '', price: '', payee: '未收款' };
+          if (!currentMonthBookings[date][room]) currentMonthBookings[date][room] = { info: '', phone: '', price: '', payee: '未收款' };
           currentMonthBookings[date][room][field] = val;
 
           let rowSum = 0;
@@ -742,7 +768,7 @@
         .where('date', '<=', `${year}-12-31`)
         .get();
 
-      // 只累加總數，放入「其他支出」
+      // 累加總數，放入「其他支出」
       const expenseMonthlyTotals = {};
       for (let m = 1; m <= 12; m++) expenseMonthlyTotals[m] = 0;
 
@@ -789,16 +815,24 @@
 
         let monthTotalExp = 0;
         EXP_CATEGORIES.forEach(cat => {
-          let defaultVal = '';
-          if (cat === '房貸') defaultVal = 31010;
-          if (cat === '網路費') defaultVal = 2170;
-
-          const dynamicExp = expenseSummary ? expenseSummary[m][cat] : 0;
+          let curVal = '';
           const manualSaved = annualData[`m${m}_${cat}`];
-          
-          let curVal = defaultVal;
-          if (dynamicExp > 0) curVal = dynamicExp;
-          else if (manualSaved !== undefined) curVal = manualSaved;
+
+          // 「其他支出」自動從支出明細表累計
+          if (cat === '其他支出') {
+            const dynamicExp = expenseMonthlyTotals[m] || 0;
+            if (dynamicExp > 0) curVal = dynamicExp;
+            else if (manualSaved !== undefined) curVal = manualSaved;
+          } 
+          // 房貸與網路費預設值
+          else {
+            if (manualSaved !== undefined) {
+              curVal = manualSaved;
+            } else {
+              if (cat === '房貸') curVal = 31010;
+              if (cat === '網路費') curVal = 2170;
+            }
+          }
 
           const numVal = parseFloat(curVal) || 0;
           monthTotalExp += numVal;
@@ -1055,7 +1089,7 @@
         const wb = XLSX.utils.book_new();
 
         const bookingSnapshot = await db.collection('bookings').get();
-        const bookingRows = [["日期", "房號/名稱", "旅客資訊", "金額", "收款人"]];
+        const bookingRows = [["日期", "房號/名稱", "旅客資訊", "電話", "金額", "收款人"]];
 
         bookingSnapshot.forEach(doc => {
           const date = doc.id;
@@ -1066,7 +1100,7 @@
             const rData = data[roomKey];
             if (rData && (rData.info || rData.price)) {
               bookingRows.push([
-                date, roomName, rData.info || '', parseFloat(rData.price) || 0, rData.payee || '未收款'
+                date, roomName, rData.info || '', rData.phone || '', parseFloat(rData.price) || 0, rData.payee || '未收款'
               ]);
             }
           }
