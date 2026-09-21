@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=0.1, maximum-scale=5.0, user-scalable=yes">
-  <title>51民宿預約與財務管理系統 V.51.02</title>
+  <title>51民宿預約與財務管理系統 V.51.260921.01</title>
   
   <!-- 載入 Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
@@ -265,7 +265,7 @@
   <div class="top-bar">
     <div class="title">
       🏡 51民宿預約與財務管理系統
-      <span class="version-badge">V.51.02</span>
+      <span class="version-badge">V.51.260921.01</span>
       <span id="syncStatus" class="status-badge">連線中...</span>
     </div>
   </div>
@@ -515,6 +515,20 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
+    // Google 試算表 Web App 串接端點
+    const GOOGLE_SHEET_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbx8FCK3-eIMNEEMYanBT6Cbp9dP0Q_Eb3DSbD3t-0iW3kjbXTAObu1VCL8Vmw4mkHYQ_Q/exec";
+
+    // 發送資料至 Google 試算表的輔助函式
+    function syncToGoogleSheet(payload) {
+      if (!GOOGLE_SHEET_WEBAPP_URL) return;
+      fetch(GOOGLE_SHEET_WEBAPP_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }).catch(err => console.error("Google 試算表同步失敗:", err));
+    }
+
     const EXP_CATEGORIES = ['booking佣金', '水費', '電費', '清潔費', '打工薪水', '薪水', '網路費', '其他支出', '房貸'];
 
     let roomNames = ['202 雙人房', '302 雙人房', '201 四人房', '301 四人房', '401 四人房'];
@@ -611,7 +625,7 @@
           currentMonthBookings = {};
           snapshot.forEach(doc => { currentMonthBookings[doc.id] = doc.data(); });
           
-          // 焦點偵測：如果使用者正在打字，先不要重新繪製表格，以免打斷輸入
+          // 焦點偵測：使用者正在打字時先不重繪表格，避免鍵盤縮回或中斷注音
           const active = document.activeElement;
           const isTyping = active && 
                            ['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName) && 
@@ -758,6 +772,14 @@
         if ((rData.info || '').trim() === '') {
           rData.info = '關房中';
           hasChanges = true;
+          // 同步將關房標記寫入 Google 試算表
+          syncToGoogleSheet({
+            date: dateKey,
+            room: roomKey,
+            field: "info",
+            val: "關房中",
+            month: monthPickerVal
+          });
         }
         dataToSave[roomKey] = rData;
       }
@@ -777,7 +799,7 @@
     function bindBookingInputs() {
       const inputs = document.querySelectorAll('#bookingTableBody input, #bookingTableBody textarea, #bookingTableBody select');
       inputs.forEach(input => {
-        // ★ 手機注音修復核心：全面改用 'change' 事件，打完字點擊空白處才存檔，避免干擾輸入法
+        // ★ 手機注音修復：全面採用 'change' 事件，打字完成離開焦點才觸發儲存與發送
         input.addEventListener('change', (e) => {
           const date = e.target.dataset.date;
           const room = e.target.dataset.room;
@@ -809,6 +831,16 @@
 
           calcAllSummaryTotals();
 
+          // 1. 同步送出給 Google 試算表 Web App
+          syncToGoogleSheet({
+            date: date,
+            room: room,
+            field: field,
+            val: val,
+            month: monthPickerVal
+          });
+
+          // 2. 存入 Firebase Firestore
           setSyncStatus('儲存中...', 'syncing');
           clearTimeout(saveTimeout);
           saveTimeout = setTimeout(() => {
@@ -1218,7 +1250,7 @@
         const wsExpenses = XLSX.utils.aoa_to_sheet(expRows);
         XLSX.utils.book_append_sheet(wb, wsExpenses, "支出明細");
 
-        const fileName = `民宿管理資料_V.51.02_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        const fileName = `民宿管理資料_V.51.260921.01_${new Date().toISOString().slice(0, 10)}.xlsx`;
         XLSX.writeFile(wb, fileName);
         setSyncStatus('雲端已同步', 'synced');
       } catch (err) {
@@ -1234,7 +1266,7 @@
         console.log("觸發每日自動下載備份...");
         exportToExcel();
         setTimeout(() => {
-          alert("【系統提醒】已為您自動下載今日 Excel 備份報表！\n\n※ 此為「網頁未關閉狀態下」的自動備份，若需完全背景發送 Email，未來可擴充 Google Apps Script。");
+          alert("【系統提醒】已為您自動下載今日 Excel 備份報表！\n\n※ 此為「網頁未關閉狀態下」的自動備份。");
         }, 3000);
       }
     }, 5000);
