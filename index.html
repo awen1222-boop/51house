@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=0.1, maximum-scale=5.0, user-scalable=yes">
-  <title>51民宿預約與財務管理系統 V.51.260921.01</title>
+  <title>51民宿預約與財務管理系統 V.51.260921.03</title>
   
   <!-- 載入 Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
@@ -198,7 +198,7 @@
     .price-row { display: flex; gap: 4px; flex-wrap: nowrap; }
     .input-price { flex: 1; width: 50%; border: 1px solid #e2e8f0; border-radius: 3px; padding: 4px; font-size: 13px; text-align: right; box-sizing: border-box; background-color: #ffffff; font-weight: 600; }
     
-    /* 收款狀態顏色標記 (阿文、榕珍、媽媽、未收) */
+    /* 收款狀態顏色標記 */
     .select-payee { 
       width: 62px; 
       padding: 3px; 
@@ -238,7 +238,7 @@
 
     .common-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; background: white; padding: 12px 16px; border-radius: 6px; border: 1px solid var(--border-color); margin-bottom: 15px; }
 
-    /* 結算明細對齊排版 (CSS Grid) */
+    /* 結算明細對齊排版 */
     .calc-row { display: flex; align-items: center; font-size: 14.5px; font-weight: 600; padding: 4px 0; letter-spacing: 0.5px; }
     .calc-row > span { display: inline-block; }
     .c-name { width: 50px; }
@@ -247,7 +247,6 @@
     .c-op { width: 25px; text-align: center; color: #94a3b8; }
     .c-result { width: 75px; text-align: right; font-size: 16px; text-decoration: underline; }
 
-    /* 手機版 RWD 優化 */
     @media (max-width: 650px) {
       .common-form { flex-direction: column; align-items: stretch; }
       .common-form strong { margin-bottom: 4px; }
@@ -265,7 +264,7 @@
   <div class="top-bar">
     <div class="title">
       🏡 51民宿預約與財務管理系統
-      <span class="version-badge">V.51.260921.01</span>
+      <span class="version-badge">V.51.260921.03</span>
       <span id="syncStatus" class="status-badge">連線中...</span>
     </div>
   </div>
@@ -365,7 +364,7 @@
     </div>
   </div>
 
-  <!-- 分頁 3: 每月支出明細 (含結算明細) -->
+  <!-- 分頁 3: 每月支出明細 -->
   <div id="tab-expenses" class="tab-content">
     <div class="controls">
       <label>檢視月份：<input type="month" id="expenseMonthPicker" onchange="listenToMonthExpenses()"></label>
@@ -515,10 +514,9 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // Google 試算表 Web App 串接端點
-    const GOOGLE_SHEET_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbx8FCK3-eIMNEEMYanBT6Cbp9dP0Q_Eb3DSbD3t-0iW3kjbXTAObu1VCL8Vmw4mkHYQ_Q/exec";
+    // 更新為最新建立的 Google 試算表 Web App 網址
+    const GOOGLE_SHEET_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyHR1Uy81YBAujCzWaq2WfogSmx-Zvy8EiZkP14sBq5_oYEcEbRmQIc7A0j0H4Z4WusXA/exec";
 
-    // 發送資料至 Google 試算表的輔助函式
     function syncToGoogleSheet(payload) {
       if (!GOOGLE_SHEET_WEBAPP_URL) return;
       fetch(GOOGLE_SHEET_WEBAPP_URL, {
@@ -625,7 +623,6 @@
           currentMonthBookings = {};
           snapshot.forEach(doc => { currentMonthBookings[doc.id] = doc.data(); });
           
-          // 焦點偵測：使用者正在打字時先不重繪表格，避免鍵盤縮回或中斷注音
           const active = document.activeElement;
           const isTyping = active && 
                            ['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName) && 
@@ -772,7 +769,6 @@
         if ((rData.info || '').trim() === '') {
           rData.info = '關房中';
           hasChanges = true;
-          // 同步將關房標記寫入 Google 試算表
           syncToGoogleSheet({
             date: dateKey,
             room: roomKey,
@@ -799,7 +795,7 @@
     function bindBookingInputs() {
       const inputs = document.querySelectorAll('#bookingTableBody input, #bookingTableBody textarea, #bookingTableBody select');
       inputs.forEach(input => {
-        // ★ 手機注音修復：全面採用 'change' 事件，打字完成離開焦點才觸發儲存與發送
+        // ★ 手機注音修復：全面採用 'change' 事件，輸入完成並離開焦點才觸發儲存與發送
         input.addEventListener('change', (e) => {
           const date = e.target.dataset.date;
           const room = e.target.dataset.room;
@@ -840,7 +836,7 @@
             month: monthPickerVal
           });
 
-          // 2. 存入 Firebase Firestore
+          // 2. 存入 Firebase
           setSyncStatus('儲存中...', 'syncing');
           clearTimeout(saveTimeout);
           saveTimeout = setTimeout(() => {
@@ -1250,7 +1246,7 @@
         const wsExpenses = XLSX.utils.aoa_to_sheet(expRows);
         XLSX.utils.book_append_sheet(wb, wsExpenses, "支出明細");
 
-        const fileName = `民宿管理資料_V.51.260921.01_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        const fileName = `民宿管理資料_V.51.260921.03_${new Date().toISOString().slice(0, 10)}.xlsx`;
         XLSX.writeFile(wb, fileName);
         setSyncStatus('雲端已同步', 'synced');
       } catch (err) {
