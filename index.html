@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=0.1, maximum-scale=5.0, user-scalable=yes">
-  <title>51民宿預約與財務管理系統 V.51.260923.01</title>
+  <title>51民宿預約與財務管理系統 V.51.260924.01</title>
   
   <!-- 載入 Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
@@ -106,7 +106,7 @@
     button.btn-primary { background: var(--accent-color); color: white; border: none; font-weight: 600; }
     button.btn-primary:hover { background: #1d4ed8; }
 
-    /* 頂部全局累計資訊吧 */
+    /* 頂部全局累計資訊列 */
     .summary-banner {
       background: white;
       border: 1px solid var(--border-color);
@@ -265,7 +265,7 @@
   <div class="top-bar">
     <div class="title">
       🏡 51民宿預約與財務管理系統
-      <span class="version-badge">V.51.260923.01</span>
+      <span class="version-badge">V.51.260924.01</span>
       <span id="syncStatus" class="status-badge">連線中...</span>
     </div>
   </div>
@@ -284,7 +284,7 @@
       <button onclick="exportToExcel()">📊 匯出 Excel 報表</button>
     </div>
 
-    <!-- 專用收款統計 -->
+    <!-- 專用收款統計與新增住房率 -->
     <div class="summary-banner">
       <span class="summary-banner-title">💰 本月收款統計：</span>
       <div class="summary-grid">
@@ -292,6 +292,8 @@
         <span class="summary-item" style="color:#be185d; background:#fce7f3; border-color:#f9a8d4;">榕珍：<span id="sumRong">0</span> 元</span>
         <span class="summary-item" style="color:#7e22ce; background:#f3e8ff; border-color:#d8b4fe;">媽媽：<span id="sumMom">0</span> 元</span>
         <span class="summary-item" style="color:#64748b; background:#ffffff; border-color:#cbd5e1;">未收：<span id="sumUnpaid">0</span> 元</span>
+        <!-- 新增訂房率展示欄 -->
+        <span class="summary-item" style="color:#0f766e; background:#ccfbf1; border-color:#99f6e4;">住房率：<span id="sumOccupancyRate" style="font-weight:700;">0%</span> (<span id="sumBookedRooms">0</span>/<span id="sumTotalRooms">0</span>間)</span>
       </div>
     </div>
 
@@ -365,7 +367,7 @@
     </div>
   </div>
 
-  <!-- 分頁 3: 每月支出明細 (含透明編輯框與結算明細) -->
+  <!-- 分頁 3: 每月支出明細 -->
   <div id="tab-expenses" class="tab-content">
     <div class="controls">
       <label>檢視月份：<input type="month" id="expenseMonthPicker" onchange="listenToMonthExpenses()"></label>
@@ -515,7 +517,6 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // 更新為最新建立的 Google 試算表 Web App 網址
     const GOOGLE_SHEET_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyHR1Uy81YBAujCzWaq2WfogSmx-Zvy8EiZkP14sBq5_oYEcEbRmQIc7A0j0H4Z4WusXA/exec";
 
     function syncToGoogleSheet(payload) {
@@ -652,6 +653,8 @@
       tbody.innerHTML = '';
       let totalMonthRevenue = 0;
       let payeeTotals = { '阿文': 0, '榕珍': 0, '媽媽': 0, '未收': 0 };
+      let bookedRoomCount = 0;
+      const totalAvailableRooms = daysCount * 5; // 當月可售房晚總數
 
       for (let day = 1; day <= daysCount; day++) {
         const dStr = String(day).padStart(2, '0');
@@ -693,9 +696,15 @@
           rowTotal += pVal;
           if (pVal > 0) payeeTotals[currentPayee] += pVal;
 
+          // 計算已訂房數 (有客名且非「關房中」，或有價格即視為訂房)
+          const infoText = (rData.info || '').trim();
+          if ((infoText.length > 0 && infoText !== '關房中') || pVal > 0) {
+            bookedRoomCount++;
+          }
+
           const tdRoom = document.createElement('td');
           let roomClass = r <= 2 ? 'room-col room-double-td' : 'room-col room-quad-td';
-          if ((rData.info || '').trim().length > 0) roomClass += ' booked-cell';
+          if (infoText.length > 0) roomClass += ' booked-cell';
           tdRoom.className = roomClass;
 
           const iId = `info-${dateKey}-${roomKey}`;
@@ -741,6 +750,12 @@
       document.getElementById('sumRong').innerText = payeeTotals['榕珍'].toLocaleString();
       document.getElementById('sumMom').innerText = payeeTotals['媽媽'].toLocaleString();
       document.getElementById('sumUnpaid').innerText = payeeTotals['未收'].toLocaleString();
+
+      // 計算與呈現住房率
+      const rate = totalAvailableRooms > 0 ? ((bookedRoomCount / totalAvailableRooms) * 100).toFixed(1) : 0;
+      document.getElementById('sumOccupancyRate').innerText = `${rate}%`;
+      document.getElementById('sumBookedRooms').innerText = bookedRoomCount;
+      document.getElementById('sumTotalRooms').innerText = totalAvailableRooms;
 
       syncMonthRevenueToAnnual(year, month, totalMonthRevenue);
       bindBookingInputs();
@@ -855,6 +870,11 @@
     function calcAllSummaryTotals() {
       let grand = 0;
       let payees = { '阿文': 0, '榕珍': 0, '媽媽': 0, '未收': 0 };
+      let bookedRoomCount = 0;
+
+      const [year, month] = document.getElementById('bookingMonthPicker').value.split('-').map(Number);
+      const daysCount = new Date(year, month, 0).getDate();
+      const totalAvailableRooms = daysCount * 5;
 
       for (let date in currentMonthBookings) {
         for (let r = 1; r <= 5; r++) {
@@ -864,6 +884,11 @@
             const payee = (['阿文','榕珍','媽媽'].indexOf(rData.payee) > -1) ? rData.payee : '未收';
             grand += p;
             if (p > 0) payees[payee] += p;
+
+            const infoText = (rData.info || '').trim();
+            if ((infoText.length > 0 && infoText !== '關房中') || p > 0) {
+              bookedRoomCount++;
+            }
           }
         }
       }
@@ -873,6 +898,11 @@
       document.getElementById('sumRong').innerText = payees['榕珍'].toLocaleString();
       document.getElementById('sumMom').innerText = payees['媽媽'].toLocaleString();
       document.getElementById('sumUnpaid').innerText = payees['未收'].toLocaleString();
+
+      const rate = totalAvailableRooms > 0 ? ((bookedRoomCount / totalAvailableRooms) * 100).toFixed(1) : 0;
+      document.getElementById('sumOccupancyRate').innerText = `${rate}%`;
+      document.getElementById('sumBookedRooms').innerText = bookedRoomCount;
+      document.getElementById('sumTotalRooms').innerText = totalAvailableRooms;
     }
 
     function syncMonthRevenueToAnnual(year, month, amount) {
@@ -1074,7 +1104,6 @@
       updateExpenseTotalsOnly();
     }
 
-    // ★ 新增：用來即時儲存支出修改的函式
     function updateExpenseField(id, field, value) {
       let updateData = {};
       if (field === 'amount') {
@@ -1084,17 +1113,15 @@
         updateData[field] = value.trim();
       }
 
-      // 樂觀更新本機資料，避免重新渲染閃爍
       const expIndex = currentMonthExpenses.findIndex(e => e.id === id);
       if (expIndex > -1) {
          currentMonthExpenses[expIndex][field] = updateData[field];
-         updateExpenseTotalsOnly(); // 即時重算底下加總
+         updateExpenseTotalsOnly();
       }
 
       setSyncStatus('儲存中...', 'syncing');
       db.collection('expenses').doc(id).update(updateData).then(() => {
         setSyncStatus('雲端已同步', 'synced');
-        // 若修改了金額，且目前畫面正顯示同一個年度的營收表，順便重載營收表
         if (field === 'amount') {
            const year = document.getElementById('expDate').value.slice(0, 4);
            if (document.getElementById('revenueYearPicker').value === year) {
@@ -1107,7 +1134,6 @@
       });
     }
 
-    // 將底下的統計邏輯抽離，以便打字時也能即時計算不會干擾輸入
     function updateExpenseTotalsOnly() {
       let monthTotal = 0;
       let payerTotals = { '阿文': 0, '榕珍': 0, '媽媽': 0 };
@@ -1307,7 +1333,7 @@
         const wsExpenses = XLSX.utils.aoa_to_sheet(expRows);
         XLSX.utils.book_append_sheet(wb, wsExpenses, "支出明細");
 
-        const fileName = `民宿管理資料_V.51.260923.01_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        const fileName = `民宿管理資料_V.51.260924.01_${new Date().toISOString().slice(0, 10)}.xlsx`;
         XLSX.writeFile(wb, fileName);
         setSyncStatus('雲端已同步', 'synced');
       } catch (err) {
